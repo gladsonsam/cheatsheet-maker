@@ -13,7 +13,17 @@ import LazyKatex from './LazyKatex';
 import imageStorage from '../utils/imageStorage';
 import githubSync from '../utils/githubSync';
 import 'katex/dist/katex.min.css';
+import TurndownService from 'turndown';
 import './Editor.css';
+
+// Initialize Turndown once for the file
+const turndownService = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced'
+});
+
+// Disable Turndown's automatic escaping to prevent unwanted backslashes in formulas or special characters
+turndownService.escape = (string) => string;
 
 // Preprocess markdown to handle **text:** patterns
 const preprocessMarkdown = (markdown) => {
@@ -79,17 +89,17 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
     const [toolbarVisible, setToolbarVisible] = useState(false);
     const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
 
-    // 处理图片按钮点击
+    // Handle image button click
     const handleImageButtonClick = () => {
         imageInputRef.current?.click();
     };
 
-    // 处理文件选择
+    // Handle file selection
     const handleFileSelect = async (e) => {
         const files = Array.from(e.target.files || []);
         if (files.length > 0) {
             await handleImageUpload(files);
-            // 清空input，允许重复选择同一文件
+            // Clear input to allow re-selection of the same file
             e.target.value = '';
         }
     };
@@ -149,7 +159,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
         setToolbarVisible(false);
     };
 
-    // 处理图片上传
+    // Handle image upload
     const handleImageUpload = async (files) => {
         const editor = editorRef.current;
         const monaco = monacoRef.current;
@@ -199,7 +209,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                         imageReference = await imageStorage.saveImage(file);
                     }
 
-                    // 在光标位置插入图片引用
+                    // Insert image reference at current cursor position
                     const position = editor.getPosition();
                     const range = new monaco.Range(
                         position.lineNumber,
@@ -217,7 +227,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                         forceMoveMarkers: true
                     }]);
 
-                    // 更新光标位置到插入图片后
+                    // Update cursor position to after the inserted image
                     const newPosition = {
                         lineNumber: position.lineNumber + 1,
                         column: 1
@@ -226,41 +236,85 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                     editor.focus();
                 } catch (error) {
                     console.error('Failed to upload image:', error);
-                    alert('图片上传失败，请重试');
+                    alert('Failed to upload image, please try again');
                 }
             }
         }
     };
 
-    // 全局粘贴事件监听
+    // Global paste event listener
     useEffect(() => {
         const handlePaste = async (e) => {
-            const items = e.clipboardData?.items;
-            if (!items) return;
+            // Only handle if editor has text focus
+            const editor = editorRef.current;
+            if (!editor || !editor.hasTextFocus()) return;
 
+            const clipboardData = e.clipboardData;
+            if (!clipboardData) return;
+
+            // 1. Handle image paste
+            const items = clipboardData.items;
             const imageFiles = [];
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 if (item.type.startsWith('image/')) {
                     const file = item.getAsFile();
-                    if (file) {
-                        imageFiles.push(file);
-                    }
+                    if (file) imageFiles.push(file);
                 }
             }
 
             if (imageFiles.length > 0) {
-                // 如果有图片，且编辑器已加载，则拦截
-                if (editorRef.current) {
-                    e.preventDefault();
-                    await handleImageUpload(imageFiles);
+                e.preventDefault();
+                e.stopImmediatePropagation(); // Completely stop subsequent processing logic
+                await handleImageUpload(imageFiles);
+                return;
+            }
+
+            const selection = editor.getSelection();
+
+            // 2. Try to read Markdown data
+            const markdownData = clipboardData.getData('text/markdown') || 
+                               clipboardData.getData('text/x-markdown');
+            
+            if (markdownData && markdownData.trim()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                editor.executeEdits('paste-markdown', [{
+                    range: selection,
+                    text: markdownData,
+                    forceMoveMarkers: true
+                }]);
+                return;
+            }
+
+            // 3. Fallback: Read HTML data and convert to Markdown
+            const htmlData = clipboardData.getData('text/html');
+            if (htmlData && htmlData.trim()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                try {
+                    const convertedMarkdown = turndownService.turndown(htmlData);
+                    if (convertedMarkdown && convertedMarkdown.trim()) {
+                        editor.executeEdits('paste-html-to-markdown', [{
+                            range: selection,
+                            text: convertedMarkdown,
+                            forceMoveMarkers: true
+                        }]);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('HTML conversion failed:', error);
                 }
             }
+
+            // If no image, MD or successfully converted HTML, do not call preventDefault
+            // and let browser/Monaco handle default text/plain logic
         };
 
-        window.addEventListener('paste', handlePaste);
+        // Use capture phase to ensure we execute first
+        window.addEventListener('paste', handlePaste, true);
         return () => {
-            window.removeEventListener('paste', handlePaste);
+            window.removeEventListener('paste', handlePaste, true);
         };
     }, []);
 
@@ -268,7 +322,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
         editorRef.current = editor;
         monacoRef.current = monaco;
 
-        // 监听拖拽事件
+        // Listen for drag events
         const domNode = editor.getDomNode();
         if (domNode) {
             domNode.addEventListener('dragover', (e) => {
@@ -463,9 +517,9 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
 
     const [isOutlineOpen, setIsOutlineOpen] = useState(false);
 
-    // 生成安全的文件名
+    // Generate safe file name
     const sanitizeFileName = (fileName) => {
-        // Windows/Linux/macOS 不允许的字符: \ / : * ? " < > |
+        // Windows/Linux/macOS disallowed characters: \ / : * ? " < > |
         return fileName.replace(/[\\/:*?"<>|]/g, '_');
     };
 
@@ -535,9 +589,9 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            // 使用当前文件名，如果不存在则使用默认名称
+                            // Use current filename if exists, else use default name
                             const fileName = currentFile?.name ? sanitizeFileName(currentFile.name) : 'untitled';
-                            // 确保文件名以 .md 结尾
+                            // Ensure filename ends with .md
                             const finalFileName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
                             a.download = finalFileName;
                             document.body.appendChild(a);

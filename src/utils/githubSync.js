@@ -44,7 +44,7 @@ class GithubSync {
             body: JSON.stringify({
                 name,
                 description: 'Created by Cheatsheet Maker',
-                private: false,  // Public repo for image accessibility
+                private: false,
                 auto_init: true
             })
         });
@@ -103,27 +103,45 @@ class GithubSync {
         return await response.json();
     }
 
-    async uploadImage(token, owner, repo, path, base64Content, message = 'Upload image') {
-        // First try to get the file to get its SHA (if it exists)
-        const currentFile = await this.getFile(token, owner, repo, path);
-        const sha = currentFile ? currentFile.sha : undefined;
+    // Extract embedded images from markdown and store them in IndexedDB
+    async extractImagesFromMarkdown(markdown, imageStorage) {
+        const imagePattern = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
+        const images = {};
+        let match;
 
-        const response = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                message,
-                content: base64Content,
-                sha
-            })
-        });
+        while ((match = imagePattern.exec(markdown)) !== null) {
+            const altText = match[1];
+            const dataUrl = match[2];
+            
+            try {
+                // Convert data URL to File
+                const response = await fetch(dataUrl);
+                const blob = await response.blob();
+                const file = new File([blob], `${altText || 'image'}.png`, { type: blob.type });
+                
+                // Save to IndexedDB
+                const imageId = await imageStorage.saveImage(file);
+                images[dataUrl] = imageId;
+            } catch (error) {
+                console.error('Failed to extract and store image:', error);
+            }
+        }
 
-        if (!response.ok) throw new Error('Failed to upload image');
-        return await response.json();
+        return images;
+    }
+
+    // Replace image data URLs in markdown with IndexedDB image IDs
+    replaceImageReferencesWithIds(markdown, imageMapping) {
+        let updatedMarkdown = markdown;
+        
+        for (const [dataUrl, imageId] of Object.entries(imageMapping)) {
+            // Escape special regex characters in the data URL
+            const escapedUrl = dataUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(`!\\[([^\\]]*)\\]\\((${escapedUrl})\\)`, 'g');
+            updatedMarkdown = updatedMarkdown.replace(pattern, `![$1](${imageId})`);
+        }
+        
+        return updatedMarkdown;
     }
 }
 

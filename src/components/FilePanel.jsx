@@ -306,7 +306,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
 
         await githubSync.uploadFile(token, owner, repo, 'files.json', indexContent, 'Update file index');
 
-        // 2. Upload each file content
+        // 2. Upload each file content (with embedded images)
         for (const file of files) {
             const filename = `content/${file.id}.md`;
             await githubSync.uploadFile(token, owner, repo, filename, file.content, `Update ${file.name}`);
@@ -345,8 +345,13 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
             }
 
             if (shouldUpdate) {
-                const content = await githubSync.getFileContent(token, owner, repo, `content/${remoteFile.id}.md`);
+                let content = await githubSync.getFileContent(token, owner, repo, `content/${remoteFile.id}.md`);
                 if (content !== null) {
+                    // Extract embedded images and restore them to IndexedDB
+                    const imageMapping = await githubSync.extractImagesFromMarkdown(content, imageStorage);
+                    // Replace image data URLs with IndexedDB image IDs
+                    content = githubSync.replaceImageReferencesWithIds(content, imageMapping);
+
                     const newFile = {
                         ...remoteFile,
                         content: content

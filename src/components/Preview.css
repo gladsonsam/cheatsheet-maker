@@ -154,10 +154,10 @@
 .md-measurer .md-code-inline {
     background: var(--theme-code-bg, #f0f0f0);
     display: inline;
-    padding: 0 0.25em;
+    padding: 0 0.4em;
     border-radius: 3px;
     font-family: 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 0.9em;
+    font-size: 0.85em;
     line-height: inherit;
     vertical-align: baseline;
     -webkit-box-decoration-break: clone;

@@ -44,11 +44,11 @@ export const themes = {
             codeInline: {
                 background: '#f8f8f8',
                 color: '#c7254e',
-                padding: '0.1em 0.3em',
+                padding: '0 0.4em',
                 borderRadius: '3px',
-                border: '1px solid #e0e0e0',
+                boxShadow: 'inset 0 0 0 1px #e0e0e0',
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                fontSize: '0.9em',
+                fontSize: '0.85em',
             },
             codeBlock: {
                 background: '#f8f8f8',
@@ -130,10 +130,11 @@ export const themes = {
             codeInline: {
                 background: '#f1f5f9',
                 color: '#db2777',
-                padding: '0.15em 0.4em',
+                padding: '0 0.4em',
                 borderRadius: '4px',
                 fontWeight: '500',
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: '0.85em',
             },
             codeBlock: {
                 background: '#f1f5f9',
@@ -219,9 +220,9 @@ export const themes = {
             codeInline: {
                 background: '#f9fafb',
                 color: '#059669',
-                padding: '0.1em 0.3em',
+                padding: '0 0.4em',
                 borderRadius: '2px',
-                fontSize: '0.9em',
+                fontSize: '0.85em',
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
             },
             codeBlock: {
@@ -304,10 +305,11 @@ export const themes = {
             codeInline: {
                 background: '#2a2a2a',
                 color: '#e5e5e5',
-                padding: '0.15em 0.4em',
+                padding: '0 0.4em',
                 borderRadius: '3px',
-                border: '1px solid #404040',
+                boxShadow: 'inset 0 0 0 1px #404040',
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: '0.85em',
             },
             codeBlock: {
                 background: '#2a2a2a',
@@ -394,11 +396,12 @@ export const themes = {
             codeInline: {
                 background: '#fef3c7',
                 color: '#dc2626',
-                padding: '0.15em 0.4em',
+                padding: '0 0.4em',
                 borderRadius: '4px',
                 fontWeight: '600',
-                border: '1px solid #fde68a',
+                boxShadow: 'inset 0 0 0 1px #fde68a',
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: '0.85em',
             },
             codeBlock: {
                 background: '#fef3c7',
@@ -487,10 +490,10 @@ export const themes = {
             codeInline: {
                 background: '#edf2f7',
                 color: '#744210',
-                padding: '0.1em 0.3em',
+                padding: '0 0.4em',
                 borderRadius: '2px',
                 fontFamily: 'Courier New, monospace',
-                fontSize: '0.9em',
+                fontSize: '0.85em',
             },
             codeBlock: {
                 background: '#edf2f7',
@@ -579,11 +582,11 @@ export const themes = {
             codeInline: {
                 background: '#1a1a1a',
                 color: '#ff006e',
-                padding: '0.15em 0.4em',
+                padding: '0 0.4em',
                 borderRadius: '3px',
-                border: '1px solid #00ff9f',
-                boxShadow: '0 0 5px rgba(0, 255, 159, 0.3)',
+                boxShadow: 'inset 0 0 0 1px #00ff9f, 0 0 3px rgba(0, 255, 159, 0.3)',
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: '0.85em',
             },
             codeBlock: {
                 background: '#1a1a1a',

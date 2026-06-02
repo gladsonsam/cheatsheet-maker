@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useRef, useMemo, useDeferredValue, useCallback, memo } from 'react';
-import { ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
+import { forwardRef, useEffect, useRef, useMemo, useDeferredValue, useCallback, memo, useState } from 'react';
+import { ZoomIn, ZoomOut, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -26,6 +26,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
     const measureRef = useRef(null);
     const pagesContainerRef = useRef(null);
     const layoutTimeoutRef = useRef(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Use deferred value for markdown to prevent blocking the UI during typing
     const deferredMarkdown = useDeferredValue(markdown);
@@ -214,6 +215,24 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
             updateLayoutRef.current();
         }, 100);
     }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                setIsFullscreen(false);
+            }
+        };
+
+        if (isFullscreen) {
+            document.body.classList.add('preview-fullscreen-open');
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.body.classList.remove('preview-fullscreen-open');
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isFullscreen]);
 
     // 手动更新函数
     const handleManualUpdate = () => {
@@ -448,19 +467,19 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
                 {...props}
             />
         ),
-        div: ({ node, className, ...props }) => {
+        div: ({ className, ...props }) => {
             if (className === 'math-display') {
                 return <LazyKatex block={true} math={props['data-math']} strategy="async" onRender={handleResourceLoad} />;
             }
             return <div className={className} {...props} />;
         },
-        span: ({ node, className, ...props }) => {
+        span: ({ className, ...props }) => {
             if (className === 'math-inline') {
                 return <LazyKatex block={false} math={props['data-math']} strategy="async" onRender={handleResourceLoad} />;
             }
             return <span className={className} {...props} />;
         },
-    }), [themeStyles]);
+    }), [themeStyles, handleResourceLoad]);
 
     const remarkRehypeOptions = useMemo(() => ({
         handlers: {
@@ -484,7 +503,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
     }), []);
 
     return (
-        <div className="preview">
+        <div className={`preview ${isFullscreen ? 'preview--fullscreen' : ''}`}>
             <div className="preview-header">
                 <div className="preview-header-left">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -526,6 +545,14 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
                     </button>
                     <button className="icon-btn" onClick={handleManualUpdate} title="Manual Update (Click if loading failed)">
                         <RefreshCw size={14} />
+                    </button>
+                    <button
+                        className="icon-btn"
+                        onClick={() => setIsFullscreen((current) => !current)}
+                        title={isFullscreen ? 'Exit full screen preview' : 'Full screen preview'}
+                        aria-label={isFullscreen ? 'Exit full screen preview' : 'Full screen preview'}
+                    >
+                        {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
                     </button>
                 </div>
             </div>

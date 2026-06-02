@@ -6,6 +6,19 @@
     background: var(--color-bg-primary);
 }
 
+.preview--fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    width: 100vw;
+    height: 100vh;
+    background: var(--color-bg-primary);
+}
+
+.preview-fullscreen-open {
+    overflow: hidden;
+}
+
 .preview-header {
     display: flex;
     align-items: center;
@@ -35,6 +48,15 @@
     background: var(--color-bg-preview);
     display: flex;
     align-items: flex-start;
+}
+
+.preview--fullscreen .preview-content {
+    justify-content: center;
+    padding: var(--spacing-xl);
+}
+
+.preview--fullscreen .preview-header {
+    box-shadow: var(--shadow-md);
 }
 
 .preview-page {
@@ -406,4 +428,8 @@
 .icon-btn:hover {
     background: var(--color-bg-tertiary);
     color: var(--color-text-primary);
+}
+
+.preview-controls .icon-btn {
+    flex-shrink: 0;
 }

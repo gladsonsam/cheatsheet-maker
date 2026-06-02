@@ -1,7 +1,9 @@
+import type { ThemeMap } from '../types';
+
 // Cheatsheet Style Themes
 // Each theme defines custom CSS variables and specific Markdown element styles
 
-export const themes = {
+export const themes: ThemeMap = {
     classic: {
         name: 'Classic',
         description: 'Traditional black & white with clean typography',

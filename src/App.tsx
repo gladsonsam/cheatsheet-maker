@@ -167,7 +167,7 @@ function App() {
         if (parsedFiles.length > 0) {
           // 按更新时间排序，最新的在最上面
           const sortedFiles = parsedFiles.sort((a, b) =>
-            new Date(b.updatedAt) - new Date(a.updatedAt)
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
           setCurrentFile(sortedFiles[0]);
           setMarkdown(sortedFiles[0].content);

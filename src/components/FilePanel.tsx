@@ -57,7 +57,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
                 const parsedFiles = JSON.parse(savedFiles);
                 // 按更新时间排序，最新的在最上面
                 const sortedFiles = parsedFiles.sort((a, b) =>
-                    new Date(b.updatedAt) - new Date(a.updatedAt)
+                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
                 );
                 setFiles(sortedFiles);
                 console.log('Loaded files:', sortedFiles.map(f => ({ name: f.name, contentLength: f.content.length, updatedAt: f.updatedAt })));
@@ -412,7 +412,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
 
         if (updatedCount > 0) {
             // Sort by updated time
-            mergedFiles.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            mergedFiles.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
             saveFiles(mergedFiles);
 
             // If current file was updated, refresh it

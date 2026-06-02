@@ -4,7 +4,7 @@ import { Github, Save, RefreshCw, LogOut, ExternalLink, Check, AlertCircle } fro
 import githubSync from '../utils/githubSync';
 import './SyncSettings.css';
 
-function SyncSettings({ isOpen, onClose, onPush, onPull }) {
+function SyncSettings({ isOpen, onClose, onPush, onPull }: any) {
     const [token, setToken] = useState('');
     const [user, setUser] = useState(null);
     const [repoName, setRepoName] = useState('cheatsheet-data');
@@ -32,7 +32,7 @@ function SyncSettings({ isOpen, onClose, onPush, onPull }) {
             setMessage(`Connected as ${userData.login}`);
             localStorage.setItem('github_token', authToken);
             localStorage.setItem('github_user', userData.login);
-        } catch (error) {
+        } catch {
             setStatus('error');
             setMessage('Invalid token');
             setUser(null);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import imageStorage from '../utils/imageStorage';
 
-const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }) => {
+const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }: any) => {
     const [imageSrc, setImageSrc] = useState(src);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -13,7 +13,7 @@ const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }) => {
         if (isStoredImage) {
             setLoading(true);
             imageStorage.getImage(src)
-                .then(imageData => {
+                .then((imageData: any) => {
                     if (imageData && imageData.data) {
                         setImageSrc(imageData.data);
                         setError(false);

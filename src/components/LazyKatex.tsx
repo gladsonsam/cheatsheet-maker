@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import katex from 'katex';
 
-const LazyKatex = ({ math, block = false, onRender, strategy = 'visible' }) => {
+const LazyKatex = ({ math, block = false, onRender, strategy = 'visible' }: any) => {
     // strategy: 'visible' (IntersectionObserver), 'async' (setTimeout), 'immediate' (render now)
     const [isVisible, setIsVisible] = useState(strategy === 'immediate');
     const containerRef = useRef(null);

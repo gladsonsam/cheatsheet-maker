@@ -1,4 +1,4 @@
-import { useRef, useState, forwardRef, useImperativeHandle, useCallback, useMemo, useDeferredValue, useEffect } from 'react';
+import { useRef, useState, forwardRef, useImperativeHandle, useMemo, useDeferredValue, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -32,7 +32,7 @@ const preprocessMarkdown = (markdown) => {
     return markdown.replace(/\*\*([^*]+?)([：:;,!?。，；！？\)\]\}\"'》>\\-–—\\/\\\\|@#$%^&*+=~`])\*\*/g, '**$1$2** ');
 };
 
-const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref) => {
+const Editor = forwardRef<any, any>(({ markdown, setMarkdown, appTheme, currentFile }, ref) => {
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
     const previewRef = useRef(null);
@@ -111,7 +111,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
         const text = editor.getModel().getValueInRange(selection);
 
         let newText = text;
-        let range = selection;
+        const range = selection;
 
         switch (type) {
             case 'bold':
@@ -296,7 +296,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                 e.preventDefault();
                 e.stopPropagation();
 
-                const files = Array.from(e.dataTransfer?.files || []);
+                const files = Array.from(e.dataTransfer?.files || []) as File[];
                 const imageFiles = files.filter(f => f.type.startsWith('image/'));
 
                 if (imageFiles.length > 0) {
@@ -321,7 +321,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                 const viewportWidth = window.innerWidth;
 
                 let left = rect.left + position.left;
-                let top = rect.top + position.top;
+                const top = rect.top + position.top;
 
                 // Adjust horizontal position if toolbar would be clipped
                 // Center the toolbar by default
@@ -382,22 +382,6 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
         }
     };
 
-    // Debounce function to prevent excessive updates and cursor jumping
-    const debounce = (func, wait) => {
-        let timeout;
-        return (...args) => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func(...args), wait);
-        };
-    };
-
-    const debouncedSetMarkdown = useCallback(
-        debounce((value) => {
-            setMarkdown(value);
-        }, 100),
-        [setMarkdown]
-    );
-
     const handleEditorChange = (value) => {
         setMarkdown(value || '');
     };
@@ -427,6 +411,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                     <MermaidDiagram
                         chart={String(children).replace(/\n$/, '')}
                         dataLine={node?.position?.start?.line}
+                        onRender={undefined}
                     />
                 );
             }
@@ -442,15 +427,15 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                 </code>
             );
         },
-        div: ({ node, className, ...props }) => {
+        div: ({ className, ...props }) => {
             if (className === 'math-display') {
-                return <LazyKatex block={true} math={props['data-math']} strategy="visible" />;
+                return <LazyKatex block={true} math={props['data-math']} strategy="visible" onRender={undefined} />;
             }
             return <div className={className} {...props} />;
         },
-        span: ({ node, className, ...props }) => {
+        span: ({ className, ...props }) => {
             if (className === 'math-inline') {
-                return <LazyKatex block={false} math={props['data-math']} strategy="visible" />;
+                return <LazyKatex block={false} math={props['data-math']} strategy="visible" onRender={undefined} />;
             }
             return <span className={className} {...props} />;
         },
@@ -626,7 +611,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                             <ReactMarkdown
                                 remarkPlugins={[remarkMath, remarkGfm]}
                                 rehypePlugins={[rehypeRaw]}
-                                remarkRehypeOptions={remarkRehypeOptions}
+                        remarkRehypeOptions={remarkRehypeOptions as any}
                                 components={components}
                             >
                                 {preprocessedMarkdown}

@@ -10,7 +10,7 @@ mermaid.initialize({
     fontSize: 12,
 });
 
-const MermaidDiagram = ({ chart, dataLine, onRender }) => {
+const MermaidDiagram = ({ chart, dataLine, onRender }: any) => {
     const elementRef = useRef(null);
     const idRef = useRef(`mermaid-${Math.random().toString(36).substr(2, 9)}`);
 
@@ -34,7 +34,7 @@ const MermaidDiagram = ({ chart, dataLine, onRender }) => {
                     if (elementRef.current) {
                         elementRef.current.innerHTML = `<div style="color: red; padding: 8px; border: 1px solid red; border-radius: 4px; font-size: 0.85em;">
                         <strong>Mermaid Error:</strong><br/>
-                        ${error.message || 'Failed to render diagram'}
+                        ${error instanceof Error ? error.message : 'Failed to render diagram'}
                     </div>`;
                         if (onRender) onRender();
                     }

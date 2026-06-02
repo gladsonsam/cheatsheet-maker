@@ -1,5 +1,12 @@
 // Font Family Options
-export const fonts = {
+export interface FontDefinition {
+    name: string;
+    family: string;
+    description?: string;
+    googleFont?: string;
+}
+
+export const fonts: Record<string, FontDefinition> = {
     'times-new-roman': {
         name: 'Times New Roman',
         family: '"Times New Roman", Times, serif',

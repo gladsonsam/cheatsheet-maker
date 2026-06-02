@@ -1,5 +1,11 @@
 // IndexedDB管理器，用于存储图片
+import type { StoredImage } from '../types';
+
 class ImageStorage {
+    dbName: string;
+    storeName: string;
+    db: IDBDatabase | null;
+
     constructor() {
         this.dbName = 'CheatsheetImages';
         this.storeName = 'images';
@@ -7,7 +13,7 @@ class ImageStorage {
     }
 
     // 初始化数据库
-    async init() {
+    async init(): Promise<IDBDatabase> {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, 1);
 
@@ -18,7 +24,7 @@ class ImageStorage {
             };
 
             request.onupgradeneeded = (event) => {
-                const db = event.target.result;
+                const db = (event.target as IDBOpenDBRequest).result;
                 if (!db.objectStoreNames.contains(this.storeName)) {
                     db.createObjectStore(this.storeName, { keyPath: 'id' });
                 }
@@ -32,7 +38,7 @@ class ImageStorage {
     }
 
     // 保存图片
-    async saveImage(file, existingId = null) {
+    async saveImage(file: File, existingId: string | null = null): Promise<string> {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
@@ -42,7 +48,7 @@ class ImageStorage {
                 const id = existingId || this.generateId();
                 const imageData = {
                     id: id,
-                    data: e.target.result, // base64 data URL
+                    data: e.target?.result as string, // base64 data URL
                     type: file.type,
                     name: file.name || 'pasted-image.png',
                     timestamp: Date.now()
@@ -62,7 +68,7 @@ class ImageStorage {
     }
 
     // 获取图片
-    async getImage(id) {
+    async getImage(id: string): Promise<StoredImage | undefined> {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
@@ -76,7 +82,7 @@ class ImageStorage {
     }
 
     // 获取所有图片
-    async saveImageData(imageData) {
+    async saveImageData(imageData: Partial<StoredImage>): Promise<string> {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
@@ -97,7 +103,7 @@ class ImageStorage {
         });
     }
 
-    async getAllImages() {
+    async getAllImages(): Promise<StoredImage[]> {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
@@ -111,7 +117,7 @@ class ImageStorage {
     }
 
     // 删除图片
-    async deleteImage(id) {
+    async deleteImage(id: string): Promise<void> {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
@@ -125,7 +131,7 @@ class ImageStorage {
     }
 
     // 清理未使用的图片（可选功能）
-    async cleanUnusedImages(usedIds) {
+    async cleanUnusedImages(usedIds: string[]): Promise<void[]> {
         const allImages = await this.getAllImages();
         const deletePromises = [];
 

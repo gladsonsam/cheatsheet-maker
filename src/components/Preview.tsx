@@ -22,7 +22,7 @@ const preprocessMarkdown = (markdown) => {
 };
 
 
-const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHeight, scale, setScale, orientation, theme, themes, fontFamily, onLineClick, liveUpdate, setLiveUpdate }, ref) => {
+const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, gap, lineHeight, scale, setScale, orientation, theme, themes, fontFamily, onLineClick, liveUpdate, setLiveUpdate }, ref) => {
     const measureRef = useRef(null);
     const pagesContainerRef = useRef(null);
     const layoutTimeoutRef = useRef(null);
@@ -119,7 +119,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.gap = '12mm';
-        const children = Array.from(measureEl.children);
+        const children = Array.from(measureEl.children) as HTMLElement[];
 
         const createPage = () => {
             const page = document.createElement('div');
@@ -127,14 +127,14 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
             page.style.width = `${widthMm}mm`;
             page.style.height = `${heightMm}mm`;
             page.style.fontSize = `${safeFontSize}pt`;
-            page.style.lineHeight = safeLineHeight;
+            page.style.lineHeight = String(safeLineHeight);
             page.style.padding = `${safePadding}mm`;
 
             // Apply theme
             const currentTheme = themes[theme] || themes.classic;
             if (currentTheme.cssVars) {
                 Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
-                    page.style.setProperty(key, value);
+                    page.style.setProperty(key, String(value));
                 });
             }
 
@@ -274,7 +274,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.gap = '12mm';
-        const children = Array.from(measureEl.children);
+        const children = Array.from(measureEl.children) as HTMLElement[];
 
         const createPage = () => {
             const page = document.createElement('div');
@@ -282,14 +282,14 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
             page.style.width = `${widthMm}mm`;
             page.style.height = `${heightMm}mm`;
             page.style.fontSize = `${safeFontSize}pt`;
-            page.style.lineHeight = safeLineHeight;
+            page.style.lineHeight = String(safeLineHeight);
             page.style.padding = `${safePadding}mm`;
 
             // Apply theme
             const currentTheme = (themes && themes[theme]) || (themes && themes.classic) || {};
             if (currentTheme.cssVars) {
                 Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
-                    page.style.setProperty(key, value);
+                    page.style.setProperty(key, String(value));
                 });
             }
 
@@ -431,7 +431,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
         tbody: (props) => <tbody className="md-tbody" {...props} />,
         tr: (props) => <tr className="md-tr" {...props} />,
         th: (props) => {
-            const style = {};
+            const style: Record<string, string> = {};
             if (themeStyles.table) {
                 if (themeStyles.table.headerBg) style.background = themeStyles.table.headerBg;
                 if (themeStyles.table.headerColor) style.color = themeStyles.table.headerColor;
@@ -442,7 +442,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
             return <th className="md-th" style={style} {...props} />;
         },
         td: (props) => {
-            const style = {};
+            const style: Record<string, string> = {};
             if (themeStyles.table?.cellBorder) {
                 style.border = themeStyles.table.cellBorder;
             }
@@ -601,7 +601,7 @@ const Preview = forwardRef(({ markdown, columns, fontSize, padding, gap, lineHei
                     <ReactMarkdown
                         remarkPlugins={[remarkMath, remarkGfm]}
                         rehypePlugins={[rehypeRaw]}
-                        remarkRehypeOptions={remarkRehypeOptions}
+                        remarkRehypeOptions={remarkRehypeOptions as any}
                         components={components}
                     >
                         {preprocessedMarkdown}

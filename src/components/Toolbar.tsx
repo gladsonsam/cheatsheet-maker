@@ -15,7 +15,9 @@ function Toolbar({
     theme, setTheme,
     fontFamily, setFontFamily,
     appTheme, setAppTheme,
-    previewRef,
+    previewRef: _previewRef,
+    scale: _scale,
+    setScale: _setScale,
     onFileClick,
     currentFile, // Add currentFile prop
     // 添加reset功能所需的默认值
@@ -100,7 +102,7 @@ function Toolbar({
                         onChange={(e) => setTheme(e.target.value)}
                         className="select"
                     >
-                        {themes && Object.entries(themes).map(([key, themeData]) => (
+                        {themes && Object.entries(themes as Record<string, any>).map(([key, themeData]) => (
                             <option key={key} value={key}>
                                 {themeData.name}
                             </option>

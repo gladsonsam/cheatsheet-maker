@@ -1,10 +1,14 @@
 
+import type { StoredImage } from '../types';
+
 class GithubSync {
+    baseUrl: string;
+
     constructor() {
         this.baseUrl = 'https://api.github.com';
     }
 
-    async validateToken(token) {
+    async validateToken(token: string): Promise<any> {
         try {
             const response = await fetch(`${this.baseUrl}/user`, {
                 headers: {
@@ -21,7 +25,7 @@ class GithubSync {
         }
     }
 
-    async getRepo(token, owner, repoName) {
+    async getRepo(token: string, owner: string, repoName: string): Promise<any | null> {
         const response = await fetch(`${this.baseUrl}/repos/${owner}/${repoName}`, {
             headers: {
                 'Authorization': `token ${token}`,
@@ -33,7 +37,7 @@ class GithubSync {
         return await response.json();
     }
 
-    async createRepo(token, name) {
+    async createRepo(token: string, name: string): Promise<any> {
         const response = await fetch(`${this.baseUrl}/user/repos`, {
             method: 'POST',
             headers: {
@@ -52,7 +56,7 @@ class GithubSync {
         return await response.json();
     }
 
-    async getFile(token, owner, repo, path) {
+    async getFile(token: string, owner: string, repo: string, path: string): Promise<any | null> {
         const response = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`, {
             headers: {
                 'Authorization': `token ${token}`,
@@ -64,7 +68,7 @@ class GithubSync {
         return await response.json();
     }
 
-    async getFileContent(token, owner, repo, path) {
+    async getFileContent(token: string, owner: string, repo: string, path: string): Promise<string | null> {
         const fileData = await this.getFile(token, owner, repo, path);
         if (!fileData) return null;
 
@@ -77,7 +81,7 @@ class GithubSync {
         }
     }
 
-    async uploadFile(token, owner, repo, path, content, message = 'Update file') {
+    async uploadFile(token: string, owner: string, repo: string, path: string, content: string, message = 'Update file'): Promise<any> {
         // First try to get the file to get its SHA (if it exists)
         const currentFile = await this.getFile(token, owner, repo, path);
         const sha = currentFile ? currentFile.sha : undefined;
@@ -103,9 +107,9 @@ class GithubSync {
         return await response.json();
     }
 
-    getImageIdsFromMarkdown(markdown) {
+    getImageIdsFromMarkdown(markdown: string): string[] {
         const imagePattern = /!\[[^\]]*\]\((img-[^)]+)\)/g;
-        const ids = new Set();
+        const ids = new Set<string>();
         let match;
 
         while ((match = imagePattern.exec(markdown)) !== null) {
@@ -115,7 +119,7 @@ class GithubSync {
         return Array.from(ids);
     }
 
-    async uploadImage(token, owner, repo, image) {
+    async uploadImage(token: string, owner: string, repo: string, image: StoredImage): Promise<any> {
         const payload = JSON.stringify({
             id: image.id,
             data: image.data,
@@ -134,16 +138,16 @@ class GithubSync {
         );
     }
 
-    async downloadImage(token, owner, repo, imageId) {
+    async downloadImage(token: string, owner: string, repo: string, imageId: string): Promise<StoredImage | null> {
         const content = await this.getFileContent(token, owner, repo, `images/${imageId}.json`);
         if (!content) return null;
         return JSON.parse(content);
     }
 
     // Extract embedded images from markdown and store them in IndexedDB
-    async extractImagesFromMarkdown(markdown, imageStorage) {
+    async extractImagesFromMarkdown(markdown: string, imageStorage: any): Promise<Record<string, string>> {
         const imagePattern = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
-        const images = {};
+        const images: Record<string, string> = {};
         let match;
 
         while ((match = imagePattern.exec(markdown)) !== null) {
@@ -168,7 +172,7 @@ class GithubSync {
     }
 
     // Replace image data URLs in markdown with IndexedDB image IDs
-    replaceImageReferencesWithIds(markdown, imageMapping) {
+    replaceImageReferencesWithIds(markdown: string, imageMapping: Record<string, string>): string {
         let updatedMarkdown = markdown;
         
         for (const [dataUrl, imageId] of Object.entries(imageMapping)) {

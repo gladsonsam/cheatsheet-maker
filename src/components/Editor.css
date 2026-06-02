@@ -237,12 +237,14 @@
 
 .editor-pane-preview .markdown-body code {
     background: var(--color-bg-tertiary);
-    display: inline-block;
-    padding: 0 0.4em;
+    display: inline;
+    padding: 0.05em 0.4em;
     border-radius: 3px;
     font-family: monospace;
-    line-height: 1.35;
+    line-height: inherit;
     vertical-align: baseline;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
 }
 
 .editor-pane-preview .markdown-body pre {

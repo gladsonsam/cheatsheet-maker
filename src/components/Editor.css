@@ -238,7 +238,7 @@
 .editor-pane-preview .markdown-body code {
     background: var(--color-bg-tertiary);
     display: inline;
-    padding: 0.05em 0.4em;
+    padding: 0 0.3em;
     border-radius: 3px;
     font-family: monospace;
     line-height: inherit;
@@ -259,7 +259,10 @@
     background: none;
     display: inline;
     padding: 0;
+    border-radius: 0;
     line-height: inherit;
+    -webkit-box-decoration-break: slice;
+    box-decoration-break: slice;
 }
 
 .editor-pane-preview .markdown-body blockquote {

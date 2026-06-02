@@ -44,7 +44,7 @@ class GithubSync {
             body: JSON.stringify({
                 name,
                 description: 'Created by Cheatsheet Maker',
-                private: false,
+                private: true,
                 auto_init: true
             })
         });
@@ -101,6 +101,43 @@ class GithubSync {
 
         if (!response.ok) throw new Error('Failed to upload file');
         return await response.json();
+    }
+
+    getImageIdsFromMarkdown(markdown) {
+        const imagePattern = /!\[[^\]]*\]\((img-[^)]+)\)/g;
+        const ids = new Set();
+        let match;
+
+        while ((match = imagePattern.exec(markdown)) !== null) {
+            ids.add(match[1]);
+        }
+
+        return Array.from(ids);
+    }
+
+    async uploadImage(token, owner, repo, image) {
+        const payload = JSON.stringify({
+            id: image.id,
+            data: image.data,
+            type: image.type,
+            name: image.name,
+            timestamp: image.timestamp
+        });
+
+        return this.uploadFile(
+            token,
+            owner,
+            repo,
+            `images/${image.id}.json`,
+            payload,
+            `Update image ${image.name || image.id}`
+        );
+    }
+
+    async downloadImage(token, owner, repo, imageId) {
+        const content = await this.getFileContent(token, owner, repo, `images/${imageId}.json`);
+        if (!content) return null;
+        return JSON.parse(content);
     }
 
     // Extract embedded images from markdown and store them in IndexedDB

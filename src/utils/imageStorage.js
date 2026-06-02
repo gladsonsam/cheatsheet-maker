@@ -32,14 +32,14 @@ class ImageStorage {
     }
 
     // 保存图片
-    async saveImage(file) {
+    async saveImage(file, existingId = null) {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
 
             reader.onload = async (e) => {
-                const id = this.generateId();
+                const id = existingId || this.generateId();
                 const imageData = {
                     id: id,
                     data: e.target.result, // base64 data URL
@@ -50,7 +50,7 @@ class ImageStorage {
 
                 const transaction = this.db.transaction([this.storeName], 'readwrite');
                 const store = transaction.objectStore(this.storeName);
-                const request = store.add(imageData);
+                const request = store.put(imageData);
 
                 request.onsuccess = () => resolve(id);
                 request.onerror = () => reject(request.error);
@@ -76,6 +76,27 @@ class ImageStorage {
     }
 
     // 获取所有图片
+    async saveImageData(imageData) {
+        if (!this.db) await this.init();
+
+        return new Promise((resolve, reject) => {
+            const record = {
+                id: imageData.id || this.generateId(),
+                data: imageData.data,
+                type: imageData.type || 'image/png',
+                name: imageData.name || 'image',
+                timestamp: imageData.timestamp || Date.now()
+            };
+
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.put(record);
+
+            request.onsuccess = () => resolve(record.id);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
     async getAllImages() {
         if (!this.db) await this.init();
 

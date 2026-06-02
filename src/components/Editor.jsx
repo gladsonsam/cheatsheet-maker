@@ -11,7 +11,6 @@ import ImageRenderer from './ImageRenderer';
 import Outline from './Outline';
 import LazyKatex from './LazyKatex';
 import imageStorage from '../utils/imageStorage';
-import githubSync from '../utils/githubSync';
 import 'katex/dist/katex.min.css';
 import TurndownService from 'turndown';
 import './Editor.css';
@@ -169,14 +168,8 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
         for (const file of files) {
             if (file.type.startsWith('image/')) {
                 try {
-                    // Always store image in IndexedDB first
+                    // Store the binary locally and keep markdown compact.
                     const imageId = await imageStorage.saveImage(file);
-                    
-                    // Get the stored image data to embed as base64 in markdown
-                    const imageData = await imageStorage.getImage(imageId);
-                    
-                    // Use the data URL directly (already contains base64 data)
-                    const imageReference = imageData.data;
 
                     // Insert image reference at current cursor position
                     const position = editor.getPosition();
@@ -188,7 +181,7 @@ const Editor = forwardRef(({ markdown, setMarkdown, appTheme, currentFile }, ref
                     );
 
                     const imageName = file.name || 'image';
-                    const imageMarkdown = `![${imageName}](${imageReference})\n`;
+                    const imageMarkdown = `![${imageName}](${imageId})\n`;
 
                     editor.executeEdits('image-upload', [{
                         range: range,

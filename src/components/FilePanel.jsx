@@ -295,8 +295,23 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
     };
 
     const handlePushFiles = async (token, owner, repo) => {
+        const normalizedFiles = [];
+
+        for (const file of files) {
+            let content = file.content;
+
+            // Convert legacy inline data URLs before syncing so markdown stays small.
+            const imageMapping = await githubSync.extractImagesFromMarkdown(content, imageStorage);
+            content = githubSync.replaceImageReferencesWithIds(content, imageMapping);
+
+            normalizedFiles.push({
+                ...file,
+                content
+            });
+        }
+
         // 1. Upload index file (metadata)
-        const indexContent = JSON.stringify(files.map(f => ({
+        const indexContent = JSON.stringify(normalizedFiles.map(f => ({
             id: f.id,
             name: f.name,
             createdAt: f.createdAt,
@@ -306,10 +321,28 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
 
         await githubSync.uploadFile(token, owner, repo, 'files.json', indexContent, 'Update file index');
 
-        // 2. Upload each file content (with embedded images)
-        for (const file of files) {
+        // 2. Upload each file content and the local image records it references.
+        const uploadedImageIds = new Set();
+        for (const file of normalizedFiles) {
             const filename = `content/${file.id}.md`;
             await githubSync.uploadFile(token, owner, repo, filename, file.content, `Update ${file.name}`);
+
+            const imageIds = githubSync.getImageIdsFromMarkdown(file.content);
+            for (const imageId of imageIds) {
+                if (uploadedImageIds.has(imageId)) continue;
+
+                const image = await imageStorage.getImage(imageId);
+                if (image) {
+                    await githubSync.uploadImage(token, owner, repo, image);
+                    uploadedImageIds.add(imageId);
+                } else {
+                    console.warn(`Skipping missing local image: ${imageId}`);
+                }
+            }
+        }
+
+        if (JSON.stringify(normalizedFiles) !== JSON.stringify(files)) {
+            saveFiles(normalizedFiles);
         }
     };
 
@@ -347,10 +380,20 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
             if (shouldUpdate) {
                 let content = await githubSync.getFileContent(token, owner, repo, `content/${remoteFile.id}.md`);
                 if (content !== null) {
-                    // Extract embedded images and restore them to IndexedDB
+                    // Extract legacy embedded images and restore them to IndexedDB
                     const imageMapping = await githubSync.extractImagesFromMarkdown(content, imageStorage);
-                    // Replace image data URLs with IndexedDB image IDs
                     content = githubSync.replaceImageReferencesWithIds(content, imageMapping);
+
+                    // Restore synced image records. Uses authenticated API, so private repos work.
+                    const imageIds = githubSync.getImageIdsFromMarkdown(content);
+                    for (const imageId of imageIds) {
+                        const remoteImage = await githubSync.downloadImage(token, owner, repo, imageId);
+                        if (remoteImage?.data) {
+                            await imageStorage.saveImageData(remoteImage);
+                        } else {
+                            console.warn(`Image not found in repository: ${imageId}`);
+                        }
+                    }
 
                     const newFile = {
                         ...remoteFile,

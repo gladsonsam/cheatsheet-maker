@@ -136,7 +136,7 @@ function App() {
     }
   };
 
-  // 保持 markdownRef 同步
+  // Keep the latest markdown available to deferred save handlers.
   useEffect(() => {
     markdownRef.current = markdown;
   }, [markdown]);
@@ -158,14 +158,14 @@ function App() {
     appTheme: 'dark'
   };
 
-  // 初始化当前文件
+  // Initialize the current file from local storage.
   useEffect(() => {
     const savedFiles = localStorage.getItem('cheatsheet_files');
     if (savedFiles) {
       try {
         const parsedFiles = JSON.parse(savedFiles);
         if (parsedFiles.length > 0) {
-          // 按更新时间排序，最新的在最上面
+          // Sort by updated time, newest first.
           const sortedFiles = parsedFiles.sort((a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
@@ -223,7 +223,7 @@ function App() {
     };
   }, [columns, fontSize, padding, gap, lineHeight, orientation, theme, fontFamily]);
 
-  // 保存当前文件到 localStorage (使用 ref 获取最新值)
+  // Save the current file to localStorage using refs for the latest values.
   const saveCurrentFile = () => {
     if (!currentFile) return;
 
@@ -252,11 +252,11 @@ function App() {
     }
   };
 
-  // 统一的自动保存 Effect
+  // Centralized autosave effect.
   useEffect(() => {
     if (!currentFile) return;
 
-    // 增加防抖时间到 2.5 秒，合并所有保存操作
+    // Debounce saves so related content and toolbar changes are batched together.
     const timer = setTimeout(() => {
       saveCurrentFile();
     }, 2500);
@@ -264,11 +264,11 @@ function App() {
     return () => clearTimeout(timer);
   }, [markdown, currentFile, columns, fontSize, padding, gap, lineHeight, orientation, theme, fontFamily]);
 
-  // 处理文件切换
+  // Handle switching between files.
   const handleFileChange = (file) => {
-    // 先保存当前文件
+    // Save the current file before switching.
     saveCurrentFile();
-    // 再切换到新文件
+    // Switch to the selected file.
     setCurrentFile(file);
     setMarkdown(file.content);
 
@@ -288,11 +288,11 @@ function App() {
     setIsFilePanelOpen(false);
   };
 
-  // 处理新建文件
+  // Handle creating a new file.
   const handleNewFile = (file) => {
-    // 先保存当前文件
+    // Save the current file before switching.
     saveCurrentFile();
-    // 再切换到新文件
+    // Switch to the new file.
     setCurrentFile(file);
     setMarkdown(file.content);
 

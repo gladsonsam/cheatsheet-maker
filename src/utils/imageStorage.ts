@@ -1,4 +1,4 @@
-// IndexedDB管理器，用于存储图片
+// IndexedDB manager for storing uploaded images.
 import type { StoredImage } from '../types';
 
 class ImageStorage {
@@ -12,7 +12,7 @@ class ImageStorage {
         this.db = null;
     }
 
-    // 初始化数据库
+    // Initialize the database.
     async init(): Promise<IDBDatabase> {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, 1);
@@ -32,12 +32,12 @@ class ImageStorage {
         });
     }
 
-    // 生成唯一ID
+    // Generate a unique image ID.
     generateId() {
         return `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    // 保存图片
+    // Save an image file.
     async saveImage(file: File, existingId: string | null = null): Promise<string> {
         if (!this.db) await this.init();
 
@@ -67,7 +67,7 @@ class ImageStorage {
         });
     }
 
-    // 获取图片
+    // Get a single image.
     async getImage(id: string): Promise<StoredImage | undefined> {
         if (!this.db) await this.init();
 
@@ -81,7 +81,7 @@ class ImageStorage {
         });
     }
 
-    // 获取所有图片
+    // Save a serialized image record.
     async saveImageData(imageData: Partial<StoredImage>): Promise<string> {
         if (!this.db) await this.init();
 
@@ -116,7 +116,7 @@ class ImageStorage {
         });
     }
 
-    // 删除图片
+    // Delete an image.
     async deleteImage(id: string): Promise<void> {
         if (!this.db) await this.init();
 
@@ -130,7 +130,7 @@ class ImageStorage {
         });
     }
 
-    // 清理未使用的图片（可选功能）
+    // Clean up images that are no longer referenced.
     async cleanUnusedImages(usedIds: string[]): Promise<void[]> {
         const allImages = await this.getAllImages();
         const deletePromises = [];
@@ -145,7 +145,7 @@ class ImageStorage {
     }
 }
 
-// 单例模式
+// Singleton instance.
 const imageStorage = new ImageStorage();
 
 export default imageStorage;

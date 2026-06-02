@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import './Outline.css';
 
 const Outline = ({ markdown, onHeadingClick }) => {
-  // 解析Markdown标题
+  // Parse Markdown headings.
   const headings = useMemo(() => {
     if (!markdown) return [];
     

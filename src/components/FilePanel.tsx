@@ -15,7 +15,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
     const [showTemplates, setShowTemplates] = useState(false);
     const [showSync, setShowSync] = useState(false);
 
-    // 定义模板配置
+    // Template presets.
     const templates = {
         note: {
             name: 'Note Template',
@@ -47,7 +47,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     };
 
-    // 从 localStorage 加载文件列表（每次打开面板时重新加载）
+    // Load the file list from localStorage whenever the panel opens.
     useEffect(() => {
         if (!isOpen) return;
 
@@ -55,7 +55,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         if (savedFiles) {
             try {
                 const parsedFiles = JSON.parse(savedFiles);
-                // 按更新时间排序，最新的在最上面
+                // Sort by updated time, newest first.
                 const sortedFiles = parsedFiles.sort((a, b) =>
                     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
                 );
@@ -66,7 +66,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
                 setFiles([]);
             }
         } else {
-            // 如果没有保存的文件，创建一个默认文件
+            // Create a default file when nothing has been saved yet.
             const defaultToolbarSettings = {
                 columns: 5,
                 fontSize: 8,
@@ -91,7 +91,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     }, [isOpen]);
 
-    // 加载图片列表
+    // Load image records.
     useEffect(() => {
         if (isOpen && showImages) {
             loadImages();
@@ -100,10 +100,10 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
 
     const loadImages = async () => {
         try {
-            // 1. 获取本地存储的图片
+            // 1. Load locally stored images.
             const localImages = await imageStorage.getAllImages();
 
-            // 2. 从所有文件的markdown中提取GitHub图片
+            // 2. Extract GitHub-hosted images from all Markdown files.
             const githubImages = [];
             const githubImagePattern = /!\[([^\]]*)\]\((https:\/\/raw\.githubusercontent\.com\/[^)]+)\)/g;
 
@@ -111,33 +111,33 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
                 const matches = [...file.content.matchAll(githubImagePattern)];
                 for (const match of matches) {
                     const [, alt, url] = match;
-                    // 检查是否已经添加过这个URL
+                    // Avoid adding the same URL more than once.
                     if (!githubImages.find(img => img.url === url)) {
-                        // 从URL提取文件名
+                        // Extract a file name from the URL.
                         const fileName = url.split('/').pop() || 'github-image';
                         githubImages.push({
-                            id: url, // 使用URL作为ID
+                            id: url, // Use the URL as the ID.
                             name: alt || fileName,
                             url: url,
                             type: 'github',
-                            timestamp: Date.now(), // 使用当前时间作为占位符
+                            timestamp: Date.now(), // Use the current time as a placeholder.
                             sourceFile: file.name
                         });
                     }
                 }
             }
 
-            // 3. 转换本地图片格式以统一结构
+            // 3. Convert local images to a consistent display shape.
             const formattedLocalImages = localImages.map(img => ({
                 ...img,
                 type: 'local',
-                url: img.data // 本地图片使用data字段作为URL
+                url: img.data // Local images use the data field as their URL.
             }));
 
-            // 4. 合并本地图片和GitHub图片
+            // 4. Merge local and GitHub images.
             const allImages = [...formattedLocalImages, ...githubImages];
 
-            // 5. 按时间排序（最新的在前）
+            // 5. Sort by time, newest first.
             allImages.sort((a, b) => b.timestamp - a.timestamp);
 
             setImages(allImages);
@@ -146,13 +146,13 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     };
 
-    // 保存文件列表到 localStorage
+    // Save the file list to localStorage.
     const saveFiles = (updatedFiles) => {
         setFiles(updatedFiles);
         localStorage.setItem('cheatsheet_files', JSON.stringify(updatedFiles));
     };
 
-    // 创建新文件
+    // Create a new file.
     const handleNewFile = () => {
         const newFile = {
             id: Date.now(),
@@ -176,13 +176,13 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         onNewFile(newFile);
     };
 
-    // 基于模板创建新文件
+    // Create a new file from a template.
     const handleCreateFromTemplate = (templateKey) => {
         const template = templates[templateKey];
         const newFile = {
             id: Date.now(),
             name: `${template.name}`,
-            content: '', // 模板不保存内容
+            content: '', // Templates do not include content.
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             toolbarSettings: { ...template.toolbarSettings }
@@ -190,10 +190,10 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         const updatedFiles = [...files, newFile];
         saveFiles(updatedFiles);
         onNewFile(newFile);
-        setShowTemplates(false); // 创建后关闭模板选择界面
+        setShowTemplates(false); // Close template selection after creating the file.
     };
 
-    // 删除文件
+    // Delete a file.
     const handleDeleteFile = (fileId) => {
         if (files.length === 1) {
             alert('Cannot delete the last file');
@@ -203,14 +203,14 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
             const updatedFiles = files.filter(file => file.id !== fileId);
             saveFiles(updatedFiles);
 
-            // 如果删除的是当前文件，切换到第一个文件
+            // If the current file was deleted, switch to the first remaining file.
             if (currentFile && currentFile.id === fileId) {
                 onFileChange(updatedFiles[0]);
             }
         }
     };
 
-    // 删除图片
+    // Delete an image.
     const handleDeleteImage = async (imageId) => {
         if (confirm('Are you sure you want to delete this image?')) {
             try {
@@ -226,9 +226,9 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     };
 
-    // 复制图片链接
+    // Copy an image link.
     const handleCopyLink = (image) => {
-        // GitHub图片直接使用URL，本地图片使用ID
+        // GitHub images use their URL directly; local images use their stored ID.
         const imageRef = image.type === 'github' ? image.url : image.id;
         const link = `![${image.name || 'image'}](${imageRef})`;
         navigator.clipboard.writeText(link).then(() => {
@@ -239,9 +239,9 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         });
     };
 
-    // 预览图片
+    // Preview an image.
     const handlePreviewImage = async (image) => {
-        // 如果是GitHub图片，预览时需要使用url字段
+        // GitHub image previews use the url field.
         if (image.type === 'github') {
             setPreviewImage({ ...image, data: image.url });
         } else {
@@ -249,18 +249,18 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     };
 
-    // 关闭预览
+    // Close the image preview.
     const handleClosePreview = () => {
         setPreviewImage(null);
     };
 
-    // 开始重命名
+    // Start renaming a file.
     const handleStartRename = (file) => {
         setEditingId(file.id);
         setEditingName(file.name);
     };
 
-    // 确认重命名
+    // Confirm a rename.
     const handleConfirmRename = (fileId) => {
         if (!editingName.trim()) {
             alert('File name cannot be empty');
@@ -276,13 +276,13 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         setEditingName('');
     };
 
-    // 取消重命名
+    // Cancel renaming.
     const handleCancelRename = () => {
         setEditingId(null);
         setEditingName('');
     };
 
-    // 格式化日期
+    // Format dates for display.
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleString('en-US', {
@@ -635,7 +635,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
                 </div>
             </div>
 
-            {/* 图片预览模态框 */}
+            {/* Image preview modal */}
             {previewImage && (
                 <div className="image-preview-overlay" onClick={handleClosePreview}>
                     <div className="image-preview-container" onClick={(e) => e.stopPropagation()}>

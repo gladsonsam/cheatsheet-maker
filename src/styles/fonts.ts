@@ -118,7 +118,7 @@ export const fonts: Record<string, FontDefinition> = {
         description: 'Rounded sans-serif, friendly and readable at small sizes',
         googleFont: 'Nunito+Sans:wght@300;400;600;700;800',
     },
-    // 手写体 / Handwriting Fonts
+    // Handwriting fonts
     'caveat': {
         name: 'Caveat',
         family: '"Caveat", cursive',
@@ -137,7 +137,7 @@ export const fonts: Record<string, FontDefinition> = {
         description: 'Retro surf-style script font',
         googleFont: 'Pacifico',
     },
-    // 等宽字体 / Monospace Fonts
+    // Monospace fonts
     'fira-code': {
         name: 'Fira Code',
         family: '"Fira Code", "Courier New", monospace',
@@ -150,7 +150,7 @@ export const fonts: Record<string, FontDefinition> = {
         description: 'Developer-focused monospace font',
         googleFont: 'JetBrains+Mono:wght@300;400;500;600;700',
     },
-    // 装饰字体 / Display Fonts
+    // Display fonts
     'playfair-display': {
         name: 'Playfair Display',
         family: '"Playfair Display", Georgia, serif',
@@ -163,7 +163,7 @@ export const fonts: Record<string, FontDefinition> = {
         description: 'Classical Roman-inspired serif font',
         googleFont: 'Cinzel:wght@400;500;600;700;800;900',
     },
-    // 现代无衬线 / Modern Sans-Serif
+    // Modern sans-serif fonts
     'raleway': {
         name: 'Raleway',
         family: '"Raleway", -apple-system, BlinkMacSystemFont, sans-serif',

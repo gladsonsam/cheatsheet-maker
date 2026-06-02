@@ -6,7 +6,7 @@ const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }: any) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
-    // 检查是否是我们的图片ID格式 (img-xxx)
+    // Check whether this is an IndexedDB image ID (img-xxx).
     const isStoredImage = src && src.startsWith('img-');
 
     useEffect(() => {
@@ -17,18 +17,18 @@ const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }: any) => {
                     if (imageData && imageData.data) {
                         setImageSrc(imageData.data);
                         setError(false);
-                        // 调用onLoad回调
+                        // Notify the parent that the image has loaded.
                         if (onLoad) onLoad();
                     } else {
                         setError(true);
-                        // 调用onError回调
+                        // Notify the parent that image loading failed.
                         if (onError) onError();
                     }
                 })
                 .catch(err => {
                     console.error('Failed to load image:', err);
                     setError(true);
-                    // 调用onError回调
+                    // Notify the parent that image loading failed.
                     if (onError) onError();
                 })
                 .finally(() => {
@@ -51,7 +51,7 @@ const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }: any) => {
                     color: '#666'
                 }}
             >
-                加载图片中...
+                Loading image...
             </span>
         );
     }
@@ -68,7 +68,7 @@ const ImageRenderer = ({ src, alt, node, onLoad, onError, ...props }: any) => {
                     color: '#d32f2f'
                 }}
             >
-                图片加载失败: {alt || src}
+                Image failed to load: {alt || src}
             </span>
         );
     }

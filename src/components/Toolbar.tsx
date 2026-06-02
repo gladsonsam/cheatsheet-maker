@@ -20,7 +20,7 @@ function Toolbar({
     setScale: _setScale,
     onFileClick,
     currentFile, // Add currentFile prop
-    // 添加reset功能所需的默认值
+    // Default values used by the reset action.
     defaultColumns,
     defaultFontSize,
     defaultPadding,
@@ -59,7 +59,7 @@ function Toolbar({
         }, 1000);
     };
 
-    // 添加reset功能
+    // Reset all controls to their defaults.
     const handleReset = () => {
         setColumns(defaultColumns);
         setFontSize(defaultFontSize);

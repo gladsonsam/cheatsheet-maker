@@ -79,7 +79,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
     }, [fontFamily]);
 
     const updateLayout = () => {
-        // 只有当实时更新开启时才执行渲染逻辑
+        // Only render the paginated preview when live updates are enabled.
         if (!liveUpdate) return;
 
         const measureEl = measureRef.current;
@@ -234,9 +234,9 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         };
     }, [isFullscreen]);
 
-    // 手动更新函数
+    // Manual update handler.
     const handleManualUpdate = () => {
-        // 强制重新渲染，即使实时更新关闭
+        // Force a render even when live updates are disabled.
         const measureEl = measureRef.current;
         if (!measureEl) return;
 

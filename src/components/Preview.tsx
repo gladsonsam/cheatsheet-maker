@@ -13,6 +13,8 @@ import fonts from '../styles/fonts';
 import 'katex/dist/katex.min.css';
 import './Preview.css';
 
+const CSS_PX_PER_MM = 96 / 25.4;
+
 // Preprocess markdown to handle **text:** patterns
 const preprocessMarkdown = (markdown) => {
     // Match **text with punctuation** and add space before closing **
@@ -36,20 +38,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         return preprocessMarkdown(deferredMarkdown);
     }, [deferredMarkdown]);
 
-    const pxPerMmRef = useRef(null);
-    const mmToPx = (mm) => {
-        if (pxPerMmRef.current == null) {
-            const div = document.createElement('div');
-            div.style.position = 'absolute';
-            div.style.left = '-9999px';
-            div.style.top = '-9999px';
-            div.style.width = '1mm';
-            document.body.appendChild(div);
-            pxPerMmRef.current = div.getBoundingClientRect().width;
-            document.body.removeChild(div);
-        }
-        return mm * pxPerMmRef.current;
-    };
+    const mmToPx = (mm) => mm * CSS_PX_PER_MM;
 
     const handlePageClick = useCallback((e) => {
         if (!onLineClick) return;
@@ -105,6 +94,8 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         const totalPaddingPx = gapPx * safeColumns; // Total padding for all columns
         const columnWidthPx = (contentWidthPx - totalPaddingPx) / safeColumns;
         const columnHeightPx = pageHeightPx - paddingPx * 2;
+        const currentTheme = (themes && themes[theme]) || (themes && themes.classic) || {};
+        const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
 
         // Prepare measurer styles
         measureEl.style.width = `${columnWidthPx - gapPx}px`;
@@ -112,6 +103,15 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         measureEl.style.lineHeight = safeLineHeight;
         measureEl.style.paddingLeft = `${safeGap / 2}mm`;
         measureEl.style.paddingRight = `${safeGap / 2}mm`;
+        measureEl.style.fontFamily = selectedFont.family;
+        if (currentTheme.cssVars) {
+            Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
+                measureEl.style.setProperty(key, String(value));
+            });
+        }
+        if (currentTheme.cssVars?.['--theme-text']) {
+            measureEl.style.color = currentTheme.cssVars['--theme-text'];
+        }
 
         const container = pagesContainerRef.current;
         if (!container) return;
@@ -123,7 +123,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
 
         const createPage = () => {
             const page = document.createElement('div');
-            page.className = 'preview-page';
+            page.className = 'preview-page markdown-flow';
             page.style.width = `${widthMm}mm`;
             page.style.height = `${heightMm}mm`;
             page.style.fontSize = `${safeFontSize}pt`;
@@ -131,7 +131,6 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
             page.style.padding = `${safePadding}mm`;
 
             // Apply theme
-            const currentTheme = themes[theme] || themes.classic;
             if (currentTheme.cssVars) {
                 Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
                     page.style.setProperty(key, String(value));
@@ -147,7 +146,6 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
             }
 
             // Apply font family
-            const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
             page.style.fontFamily = selectedFont.family;
 
             const grid = document.createElement('div');
@@ -206,6 +204,21 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         updateLayoutRef.current = updateLayout;
     });
 
+    useEffect(() => {
+        if (!('fonts' in document)) return;
+
+        let cancelled = false;
+        document.fonts.ready.then(() => {
+            if (!cancelled) {
+                updateLayoutRef.current();
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [fontFamily]);
+
     const handleResourceLoad = useCallback(() => {
         // Debounce layout updates from resource loading (images, mermaid)
         if (layoutTimeoutRef.current) {
@@ -260,6 +273,8 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         const totalPaddingPx = gapPx * safeColumns; // Total padding for all columns
         const columnWidthPx = (contentWidthPx - totalPaddingPx) / safeColumns;
         const columnHeightPx = pageHeightPx - paddingPx * 2;
+        const currentTheme = (themes && themes[theme]) || (themes && themes.classic) || {};
+        const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
 
         // Prepare measurer styles
         measureEl.style.width = `${columnWidthPx - gapPx}px`;
@@ -267,6 +282,15 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         measureEl.style.lineHeight = safeLineHeight;
         measureEl.style.paddingLeft = `${safeGap / 2}mm`;
         measureEl.style.paddingRight = `${safeGap / 2}mm`;
+        measureEl.style.fontFamily = selectedFont.family;
+        if (currentTheme.cssVars) {
+            Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
+                measureEl.style.setProperty(key, String(value));
+            });
+        }
+        if (currentTheme.cssVars?.['--theme-text']) {
+            measureEl.style.color = currentTheme.cssVars['--theme-text'];
+        }
 
         const container = pagesContainerRef.current;
         if (!container) return;
@@ -278,7 +302,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
 
         const createPage = () => {
             const page = document.createElement('div');
-            page.className = 'preview-page';
+            page.className = 'preview-page markdown-flow';
             page.style.width = `${widthMm}mm`;
             page.style.height = `${heightMm}mm`;
             page.style.fontSize = `${safeFontSize}pt`;
@@ -286,7 +310,6 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
             page.style.padding = `${safePadding}mm`;
 
             // Apply theme
-            const currentTheme = (themes && themes[theme]) || (themes && themes.classic) || {};
             if (currentTheme.cssVars) {
                 Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
                     page.style.setProperty(key, String(value));
@@ -302,7 +325,6 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
             }
 
             // Apply font family
-            const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
             page.style.fontFamily = selectedFont.family;
 
             const grid = document.createElement('div');
@@ -596,7 +618,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
                 <div
                     ref={measureRef}
                     style={{ position: 'absolute', left: '-9999px', top: '-9999px', visibility: 'hidden' }}
-                    className="md-measurer"
+                    className="md-measurer markdown-flow"
                 >
                     <ReactMarkdown
                         remarkPlugins={[remarkMath, remarkGfm]}

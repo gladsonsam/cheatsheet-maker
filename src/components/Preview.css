@@ -88,7 +88,7 @@
 }
 
 /* Markdown Styles */
-.preview-page .md-h1 {
+.markdown-flow .md-h1 {
     font-size: 1.8em;
     font-weight: 700;
     margin: 0.5em 0 0.3em 0;
@@ -98,7 +98,7 @@
     break-after: avoid;
 }
 
-.preview-page .md-h2 {
+.markdown-flow .md-h2 {
     font-size: 1.4em;
     font-weight: 600;
     margin: 0.4em 0 0.25em 0;
@@ -108,7 +108,7 @@
     break-after: avoid;
 }
 
-.preview-page .md-h3 {
+.markdown-flow .md-h3 {
     font-size: 1.2em;
     font-weight: 600;
     margin: 0.3em 0 0.2em 0;
@@ -116,7 +116,7 @@
     break-after: avoid;
 }
 
-.preview-page .md-h4 {
+.markdown-flow .md-h4 {
     font-size: 1.1em;
     font-weight: 600;
     margin: 0.25em 0 0.15em 0;
@@ -124,8 +124,8 @@
     break-after: avoid;
 }
 
-.preview-page .md-h5,
-.preview-page .md-h6 {
+.markdown-flow .md-h5,
+.markdown-flow .md-h6 {
     font-size: 1em;
     font-weight: 600;
     margin: 0.2em 0 0.1em 0;
@@ -133,24 +133,24 @@
     break-after: avoid;
 }
 
-.preview-page .md-p {
+.markdown-flow .md-p {
     margin: 0.3em 0;
     text-align: justify;
     hyphens: auto;
 }
 
-.preview-page .md-ul,
-.preview-page .md-ol {
+.markdown-flow .md-ul,
+.markdown-flow .md-ol {
     margin: 0.3em 0;
     padding-left: 1.5em;
     overflow: visible;
 }
 
-.preview-page .md-li {
+.markdown-flow .md-li {
     margin: 0.1em 0;
 }
 
-.preview-page .md-code-inline,
+.markdown-flow .md-code-inline,
 .md-measurer .md-code-inline {
     background: var(--theme-code-bg, #f0f0f0);
     display: inline;
@@ -165,7 +165,7 @@
     color: var(--theme-code-text, #c7254e);
 }
 
-.preview-page .md-code-block code {
+.markdown-flow .md-code-block code {
     background: transparent !important;
     border: 0 !important;
     border-radius: 0 !important;
@@ -174,13 +174,13 @@
     box-decoration-break: slice;
 }
 
-.preview-page .md-pre {
+.markdown-flow .md-pre {
     margin: 0.4em 0;
     break-inside: avoid;
     overflow: visible;
 }
 
-.preview-page .md-code-block {
+.markdown-flow .md-code-block {
     font-family: 'JetBrains Mono', 'Courier New', monospace;
     font-size: 0.75em !important;
     line-height: 1.4 !important;
@@ -194,7 +194,7 @@
     word-break: break-all !important;
 }
 
-.preview-page .md-code-block pre {
+.markdown-flow .md-code-block pre {
     margin: 0 !important;
     padding: 0.6em !important;
     background: #f8f8f8 !important;
@@ -204,7 +204,7 @@
     word-break: break-all !important;
 }
 
-.preview-page .md-blockquote {
+.markdown-flow .md-blockquote {
     border-left: 3px solid var(--theme-quote-border, #666);
     padding-left: 0.8em;
     margin: 0.4em 0;
@@ -212,7 +212,7 @@
     font-style: italic;
 }
 
-.preview-page .md-table {
+.markdown-flow .md-table {
     border-collapse: collapse;
     width: 100%;
     max-width: 100%;
@@ -222,8 +222,8 @@
     table-layout: auto;
 }
 
-.preview-page .md-th,
-.preview-page .md-td {
+.markdown-flow .md-th,
+.markdown-flow .md-td {
     border: 1px solid var(--theme-border, #ddd);
     padding: 0.3em 0.5em;
     text-align: left;
@@ -233,44 +233,44 @@
     hyphens: auto;
 }
 
-.preview-page .md-th {
+.markdown-flow .md-th {
     background: #f0f0f0;
     font-weight: 600;
     white-space: normal;
     color: inherit;
 }
 
-.preview-page .md-tr:nth-child(even) {
+.markdown-flow .md-tr:nth-child(even) {
     background: var(--theme-table-striped, #f9f9f9);
 }
 
-.preview-page .md-link {
+.markdown-flow .md-link {
     color: #0066cc;
     text-decoration: none;
     border-bottom: 1px dotted #0066cc;
 }
 
-.preview-page .md-link:hover {
+.markdown-flow .md-link:hover {
     color: #0052a3;
     border-bottom-style: solid;
 }
 
-.preview-page .md-strong {
+.markdown-flow .md-strong {
     font-weight: 700;
     color: inherit;
 }
 
-.preview-page .md-em {
+.markdown-flow .md-em {
     font-style: italic;
 }
 
-.preview-page .md-hr {
+.markdown-flow .md-hr {
     border: none;
     border-top: 1px solid #999;
     margin: 0.5em 0;
 }
 
-.preview-page .md-img {
+.markdown-flow .md-img {
     max-width: 100%;
     height: auto;
     display: block;
@@ -283,16 +283,16 @@
 
 
 /* Prevent breaking inside elements */
-.preview-page h1,
-.preview-page h2,
-.preview-page h3,
-.preview-page h4,
-.preview-page h5,
-.preview-page h6,
-.preview-page pre,
-.preview-page table,
-.preview-page img,
-.preview-page .katex-display {
+.markdown-flow h1,
+.markdown-flow h2,
+.markdown-flow h3,
+.markdown-flow h4,
+.markdown-flow h5,
+.markdown-flow h6,
+.markdown-flow pre,
+.markdown-flow table,
+.markdown-flow img,
+.markdown-flow .katex-display {
     break-inside: avoid;
 }
 
@@ -447,3 +447,4 @@
 .preview-controls .icon-btn {
     flex-shrink: 0;
 }
+

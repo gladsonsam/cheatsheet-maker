@@ -208,7 +208,21 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         if (!('fonts' in document)) return;
 
         let cancelled = false;
-        document.fonts.ready.then(() => {
+        const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
+        const safeFontSize = Math.max(1, Number(fontSize) || 1);
+
+        // Explicitly load the selected font at the size we measure with, then
+        // re-paginate. Relying only on `document.fonts.ready` is racy: on iPad
+        // it can resolve before a Google Font (e.g. Inter) has arrived, so the
+        // layout gets measured with a fallback font and never recomputed after
+        // the real font swaps in — producing a different page count.
+        const fontSpec = `${safeFontSize}pt ${selectedFont.family}`;
+        const loadPromise = document.fonts
+            .load(fontSpec)
+            .catch(() => undefined)
+            .then(() => document.fonts.ready);
+
+        loadPromise.then(() => {
             if (!cancelled) {
                 updateLayoutRef.current();
             }
@@ -217,7 +231,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         return () => {
             cancelled = true;
         };
-    }, [fontFamily]);
+    }, [fontFamily, fontSize]);
 
     const handleResourceLoad = useCallback(() => {
         // Debounce layout updates from resource loading (images, mermaid)

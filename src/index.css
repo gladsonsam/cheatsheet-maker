@@ -82,6 +82,14 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Stop iOS/iPad Safari from auto-inflating text in large blocks. Without
+     this, the preview measures taller on iPad than on desktop and content
+     spills onto an extra page. Keep the rendered size exactly as authored. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-family-base);
   background: var(--color-bg-primary);
@@ -89,6 +97,8 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 #root {

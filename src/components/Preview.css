@@ -59,6 +59,15 @@
     box-shadow: var(--shadow-md);
 }
 
+.preview-page,
+.md-measurer {
+    /* Pin text size so the measured layout (.md-measurer) and the rendered
+       pages are identical on every device — iPad Safari otherwise inflates
+       text and produces a different page count than desktop. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 .preview-page {
     background: white;
     padding: 15mm;
@@ -136,7 +145,10 @@
 .markdown-flow .md-p {
     margin: 0.3em 0;
     text-align: justify;
-    hyphens: auto;
+    /* Avoid `hyphens: auto`: hyphenation dictionaries differ between platforms
+       (Windows desktop vs iPad Safari), which changes line counts and therefore
+       pagination. `manual` wraps identically everywhere. */
+    hyphens: manual;
 }
 
 .markdown-flow .md-ul,
@@ -230,7 +242,7 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-all;
-    hyphens: auto;
+    hyphens: manual;
 }
 
 .markdown-flow .md-th {

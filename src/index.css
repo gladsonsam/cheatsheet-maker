@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Inter and JetBrains Mono are self-hosted via @fontsource (see main.tsx) so
+   their metrics are identical on every device. Do NOT re-add a Google Fonts
+   CDN import for them — that reintroduces per-device font variance. */
 
 :root {
   /* Color Palette - Overleaf inspired */

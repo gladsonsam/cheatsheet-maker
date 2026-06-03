@@ -56,7 +56,8 @@ export const fonts: Record<string, FontDefinition> = {
         name: 'Inter',
         family: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         description: 'Modern sans-serif optimized for screens',
-        googleFont: 'Inter:wght@300;400;500;600;700;800',
+        // Self-hosted via @fontsource (see main.tsx) — no googleFont so it is
+        // not also fetched from the CDN with potentially different metrics.
     },
     'roboto': {
         name: 'Roboto',
@@ -148,7 +149,7 @@ export const fonts: Record<string, FontDefinition> = {
         name: 'JetBrains Mono',
         family: '"JetBrains Mono", "Courier New", monospace',
         description: 'Developer-focused monospace font',
-        googleFont: 'JetBrains+Mono:wght@300;400;500;600;700',
+        // Self-hosted via @fontsource (see main.tsx).
     },
     // Display fonts
     'playfair-display': {

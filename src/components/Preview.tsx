@@ -211,16 +211,28 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
         const safeFontSize = Math.max(1, Number(fontSize) || 1);
 
-        // Explicitly load the selected font at the size we measure with, then
-        // re-paginate. Relying only on `document.fonts.ready` is racy: on iPad
-        // it can resolve before a Google Font (e.g. Inter) has arrived, so the
-        // layout gets measured with a fallback font and never recomputed after
-        // the real font swaps in — producing a different page count.
-        const fontSpec = `${safeFontSize}pt ${selectedFont.family}`;
-        const loadPromise = document.fonts
-            .load(fontSpec)
-            .catch(() => undefined)
-            .then(() => document.fonts.ready);
+        // Extract the primary family name (the first entry of the CSS stack,
+        // with surrounding quotes removed). document.fonts.load() needs a valid
+        // font shorthand with a *single* family — passing the whole fallback
+        // stack makes it silently no-op, which is the racy behaviour we're
+        // trying to avoid.
+        const primaryFamily = selectedFont.family.split(',')[0].trim();
+        const familyForLoad = /\s/.test(primaryFamily) && !primaryFamily.startsWith('"')
+            ? `"${primaryFamily}"`
+            : primaryFamily;
+
+        // Load every weight the document renders with (headings are bold, body
+        // is regular) at our measurement size, then re-paginate. Relying only
+        // on document.fonts.ready is racy: it can resolve before the chosen
+        // font has actually loaded, so the layout gets measured with a fallback
+        // font whose metrics differ from the real one — the root cause of the
+        // desktop-vs-iPad page-count mismatch.
+        const weights = [400, 700];
+        const loadPromise = Promise.all(
+            weights.map((w) =>
+                document.fonts.load(`${w} ${safeFontSize}pt ${familyForLoad}`).catch(() => undefined)
+            )
+        ).then(() => document.fonts.ready);
 
         loadPromise.then(() => {
             if (!cancelled) {

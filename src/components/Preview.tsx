@@ -67,12 +67,22 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         }
     }, [fontFamily]);
 
-    const updateLayout = () => {
-        // Only render the paginated preview when live updates are enabled.
-        if (!liveUpdate) return;
-
+    // Shared layout/pagination routine.
+    //
+    // IMPORTANT: pages are built and measured in an OFF-SCREEN, UN-ZOOMED
+    // scratch container, then moved into the visible (zoomed) container for
+    // display. The visible preview lives inside `.preview-scaler`, which has a
+    // CSS `zoom`. Blink (Chrome/Edge) reports scrollHeight/clientHeight at 1:1
+    // regardless of zoom, but WebKit (Safari/iPad) scales these metrics under
+    // zoom — so measuring inside the zoomed container produced a different page
+    // count on iPad than on desktop (e.g. one page becoming two). Measuring at
+    // zoom:1 makes pagination identical on every engine.
+    const performLayout = () => {
         const measureEl = measureRef.current;
         if (!measureEl) return;
+
+        const container = pagesContainerRef.current;
+        if (!container) return;
 
         // Compute column width/height in px based on A4 landscape and current paddings/gaps
         const isLandscape = orientation === 'landscape';
@@ -113,12 +123,12 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
             measureEl.style.color = currentTheme.cssVars['--theme-text'];
         }
 
-        const container = pagesContainerRef.current;
-        if (!container) return;
-        container.innerHTML = '';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '12mm';
+        // Off-screen, un-zoomed scratch container where pages are built/measured.
+        const scratch = document.createElement('div');
+        scratch.style.cssText =
+            'position:absolute; left:-99999px; top:0; zoom:1; visibility:hidden; display:flex; flex-direction:column; gap:12mm;';
+        document.body.appendChild(scratch);
+
         const children = Array.from(measureEl.children) as HTMLElement[];
 
         const createPage = () => {
@@ -165,7 +175,7 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
             }
 
             page.appendChild(grid);
-            container.appendChild(page);
+            scratch.appendChild(page);
             return cols;
         };
 
@@ -190,6 +200,23 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
                 }
             }
         });
+
+        // Move the finished, measured pages into the visible container (which is
+        // inside the zoomed scaler — display only, no further measurement).
+        container.innerHTML = '';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '12mm';
+        while (scratch.firstChild) {
+            container.appendChild(scratch.firstChild);
+        }
+        scratch.remove();
+    };
+
+    const updateLayout = () => {
+        // Only render the paginated preview when live updates are enabled.
+        if (!liveUpdate) return;
+        performLayout();
     };
 
     useEffect(() => {
@@ -273,128 +300,9 @@ const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, ga
         };
     }, [isFullscreen]);
 
-    // Manual update handler.
+    // Manual update handler — force a render even when live updates are disabled.
     const handleManualUpdate = () => {
-        // Force a render even when live updates are disabled.
-        const measureEl = measureRef.current;
-        if (!measureEl) return;
-
-        // Compute column width/height in px based on A4 landscape and current paddings/gaps
-        const isLandscape = orientation === 'landscape';
-        const widthMm = isLandscape ? 297 : 210;
-        const heightMm = isLandscape ? 210 : 297;
-
-        // Safety checks for layout parameters
-        const safeColumns = Math.max(1, Number(columns) || 1);
-        const safePadding = Math.max(0, Number(padding) || 0);
-        const safeGap = Math.max(0, Number(gap) || 0);
-        const safeFontSize = Math.max(1, Number(fontSize) || 1);
-        const safeLineHeight = Math.max(0.1, Number(lineHeight) || 1);
-
-        const pageWidthPx = mmToPx(widthMm);
-        const pageHeightPx = mmToPx(heightMm);
-        const paddingPx = mmToPx(safePadding);
-        const gapPx = mmToPx(safeGap);
-        const contentWidthPx = pageWidthPx - paddingPx * 2;
-        const totalPaddingPx = gapPx * safeColumns; // Total padding for all columns
-        const columnWidthPx = (contentWidthPx - totalPaddingPx) / safeColumns;
-        const columnHeightPx = pageHeightPx - paddingPx * 2;
-        const currentTheme = (themes && themes[theme]) || (themes && themes.classic) || {};
-        const selectedFont = fonts[fontFamily] || fonts['times-new-roman'];
-
-        // Prepare measurer styles
-        measureEl.style.width = `${columnWidthPx - gapPx}px`;
-        measureEl.style.fontSize = `${safeFontSize}pt`;
-        measureEl.style.lineHeight = safeLineHeight;
-        measureEl.style.paddingLeft = `${safeGap / 2}mm`;
-        measureEl.style.paddingRight = `${safeGap / 2}mm`;
-        measureEl.style.fontFamily = selectedFont.family;
-        if (currentTheme.cssVars) {
-            Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
-                measureEl.style.setProperty(key, String(value));
-            });
-        }
-        if (currentTheme.cssVars?.['--theme-text']) {
-            measureEl.style.color = currentTheme.cssVars['--theme-text'];
-        }
-
-        const container = pagesContainerRef.current;
-        if (!container) return;
-        container.innerHTML = '';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '12mm';
-        const children = Array.from(measureEl.children) as HTMLElement[];
-
-        const createPage = () => {
-            const page = document.createElement('div');
-            page.className = 'preview-page markdown-flow';
-            page.style.width = `${widthMm}mm`;
-            page.style.height = `${heightMm}mm`;
-            page.style.fontSize = `${safeFontSize}pt`;
-            page.style.lineHeight = String(safeLineHeight);
-            page.style.padding = `${safePadding}mm`;
-
-            // Apply theme
-            if (currentTheme.cssVars) {
-                Object.entries(currentTheme.cssVars).forEach(([key, value]) => {
-                    page.style.setProperty(key, String(value));
-                });
-            }
-
-            // Apply background and text colors
-            if (currentTheme.cssVars['--theme-bg']) {
-                page.style.background = currentTheme.cssVars['--theme-bg'];
-            }
-            if (currentTheme.cssVars['--theme-text']) {
-                page.style.color = currentTheme.cssVars['--theme-text'];
-            }
-
-            // Apply font family
-            page.style.fontFamily = selectedFont.family;
-
-            const grid = document.createElement('div');
-            grid.className = 'page-columns';
-            grid.style.gridTemplateColumns = `repeat(${safeColumns}, 1fr)`;
-            grid.style.gap = '0mm'; // Remove gap as we'll use padding instead
-
-            const cols = [];
-            for (let i = 0; i < safeColumns; i++) {
-                const col = document.createElement('div');
-                col.className = 'page-column';
-                col.style.height = `${columnHeightPx}px`;
-                col.style.paddingLeft = `${safeGap / 2}mm`;
-                col.style.paddingRight = `${safeGap / 2}mm`;
-                grid.appendChild(col);
-                cols.push(col);
-            }
-
-            page.appendChild(grid);
-            container.appendChild(page);
-            return cols;
-        };
-
-        let cols = createPage();
-        let colIndex = 0;
-
-        children.forEach((child) => {
-            const node = child.cloneNode(true);
-            cols[colIndex].appendChild(node);
-            const overflow = cols[colIndex].scrollHeight > cols[colIndex].clientHeight;
-            if (overflow) {
-                cols[colIndex].removeChild(node);
-                colIndex += 1;
-                if (colIndex >= safeColumns) {
-                    cols = createPage();
-                    colIndex = 0;
-                }
-                cols[colIndex].appendChild(node);
-                // If still overflow, the block is taller than a single column; allow it to overflow within a fresh column to avoid clipping
-                if (cols[colIndex].scrollHeight > cols[colIndex].clientHeight) {
-                    cols[colIndex].style.overflow = 'visible';
-                }
-            }
-        });
+        performLayout();
     };
 
     // Custom components to inject source line numbers and apply theme styles

@@ -8,12 +8,55 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Allow tauri-action to create releases when building from a tag.
+# Allow the workflow to create releases when building from a tag.
 permissions:
   contents: write
 
 jobs:
+  # On a tag push, create (or reuse) the draft release up front so every matrix
+  # build uploads its installers into the same release. tauri-action can't do
+  # this itself across a matrix: parallel jobs would each try to create the
+  # release, and GitHub's "get release by tag" API doesn't return drafts, so the
+  # jobs can't see each other's draft and you end up with duplicates.
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    steps:
+      - name: Create draft release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            // Reuse an existing release for this tag (e.g. on a re-run) so we
+            // don't 422 trying to recreate it; listReleases includes drafts.
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const existing = releases.find((r) => r.tag_name === tag);
+            if (existing) {
+              return existing.id;
+            }
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Cheatsheet Maker ${tag}`,
+              draft: true,
+              prerelease: false,
+              generate_release_notes: true,
+            });
+            return data.id;
+
   build:
+    needs: [create-release]
+    # Run on branch/PR builds (where create-release is skipped) and on tag
+    # builds (where it must have succeeded), but not if the release step failed.
+    if: always() && needs.create-release.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
@@ -64,18 +107,17 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build the app (and release on tags)
+      - name: Build the app (and upload to the draft release on tags)
         uses: tauri-apps/tauri-action@v0
         id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # On a tag push these create a draft GitHub release with the installers
-          # attached. On branch/PR builds they are empty, so we only build.
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('Cheatsheet Maker {0}', github.ref_name) || '' }}
-          releaseDraft: true
-          prerelease: false
+          # On a tag push, releaseId points at the draft created above and
+          # tauri-action attaches the installers to it. On branch/PR builds the
+          # create-release job is skipped, releaseId is empty, and the action
+          # just builds — we keep those artifacts via upload-artifact below.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
       - name: Upload installers as build artifacts

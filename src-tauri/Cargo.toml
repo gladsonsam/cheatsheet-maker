@@ -1,6 +1,6 @@
 [package]
 name = "cheatsheet-maker"
-version = "0.0.0"
+version = "0.1.0"
 description = "Cheatsheet Maker desktop shell"
 authors = ["Cheatsheet Maker"]
 edition = "2021"

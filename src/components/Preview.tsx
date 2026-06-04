@@ -10,18 +10,11 @@ import MermaidDiagram from './MermaidDiagram';
 import ImageRenderer from './ImageRenderer';
 import LazyKatex from './LazyKatex';
 import fonts from '../styles/fonts';
+import { preprocessMarkdown } from '../utils/preprocessMarkdown';
 import 'katex/dist/katex.min.css';
 import './Preview.css';
 
 const CSS_PX_PER_MM = 96 / 25.4;
-
-// Preprocess markdown to handle **text:** patterns
-const preprocessMarkdown = (markdown) => {
-    // Match **text with punctuation** and add space before closing **
-    // Supports: :;,!?.()[]{}"'<>-–—/\|@#$%^&*+=~`
-    // Both English and Chinese punctuation
-    return markdown.replace(/\*\*([^*]+?)([：:;,!?。，；！？\)\]\}"'》>\-–—\/\\|@#$%^&*+=~`])\*\*/g, '**$1$2** ');
-};
 
 
 const Preview = forwardRef<any, any>(({ markdown, columns, fontSize, padding, gap, lineHeight, scale, setScale, orientation, theme, themes, fontFamily, onLineClick, liveUpdate, setLiveUpdate }, ref) => {

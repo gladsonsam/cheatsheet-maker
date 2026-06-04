@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { File, Plus, Trash2, Edit2, Check, X, Image, Link, Eye, Github, Cloud, FolderOpen, RefreshCw } from 'lucide-react';
+import { File, Plus, Trash2, Edit2, Check, X, Image, Link, Eye, Github, Cloud, FolderOpen, RefreshCw, Copy } from 'lucide-react';
 import imageStorage from '../utils/imageStorage';
 import githubSync from '../utils/githubSync';
 import fileStorage from '../utils/fileStorage';
@@ -20,23 +20,9 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
 
     // Template presets.
     const templates = {
-        note: {
-            name: 'Note Template',
-            description: 'Simple vertical layout with single column',
-            toolbarSettings: {
-                columns: 1,
-                fontSize: 12,
-                padding: 15,
-                gap: 5,
-                lineHeight: 1.5,
-                orientation: 'portrait',
-                theme: 'classic',
-                fontFamily: 'inter'
-            }
-        },
         cheatsheet: {
-            name: 'Cheatsheet Template',
-            description: 'Default cheatsheet layout',
+            name: 'Cheatsheet',
+            description: 'Dense multi-column landscape layout',
             toolbarSettings: {
                 columns: 5,
                 fontSize: 8,
@@ -46,7 +32,183 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
                 orientation: 'landscape',
                 theme: 'classic',
                 fontFamily: 'inter'
-            }
+            },
+            content: ''
+        },
+        note: {
+            name: 'Study Notes',
+            description: 'Readable single-column portrait layout',
+            toolbarSettings: {
+                columns: 1,
+                fontSize: 12,
+                padding: 15,
+                gap: 5,
+                lineHeight: 1.5,
+                orientation: 'portrait',
+                theme: 'classic',
+                fontFamily: 'inter'
+            },
+            content: ''
+        },
+        math: {
+            name: 'Math / Physics',
+            description: 'KaTeX formulas, 3-column landscape',
+            toolbarSettings: {
+                columns: 3,
+                fontSize: 9,
+                padding: 8,
+                gap: 2,
+                lineHeight: 1.3,
+                orientation: 'landscape',
+                theme: 'classic',
+                fontFamily: 'inter'
+            },
+            content: `# Math & Physics Reference
+
+## Algebra
+**Quadratic:** $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
+
+**Binomial:** $(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k$
+
+## Calculus
+**Derivative rules:**
+- Power: $(x^n)' = nx^{n-1}$
+- Product: $(uv)' = u'v + uv'$
+- Chain: $(f(g(x)))' = f'(g(x)) \\cdot g'(x)$
+
+**Integrals:**
+- $\\int x^n\\,dx = \\frac{x^{n+1}}{n+1} + C$
+- $\\int e^x\\,dx = e^x + C$
+- $\\int \\sin x\\,dx = -\\cos x + C$
+
+## Physics
+**Kinematics:** $v = v_0 + at$, $s = v_0 t + \\frac{1}{2}at^2$
+
+**Newton's 2nd:** $F = ma$
+
+**Energy:** $E_k = \\frac{1}{2}mv^2$, $E_p = mgh$
+
+**Waves:** $v = f\\lambda$
+
+## Trigonometry
+| Identity | Formula |
+|----------|---------|
+| $\\sin^2 + \\cos^2$ | $= 1$ |
+| $\\tan\\theta$ | $= \\frac{\\sin\\theta}{\\cos\\theta}$ |
+| $\\sin 2\\theta$ | $= 2\\sin\\theta\\cos\\theta$ |
+`
+        },
+        code: {
+            name: 'Code Reference',
+            description: 'Syntax-highlighted code, 3-column landscape',
+            toolbarSettings: {
+                columns: 3,
+                fontSize: 8,
+                padding: 6,
+                gap: 2,
+                lineHeight: 1.25,
+                orientation: 'landscape',
+                theme: 'midnight',
+                fontFamily: 'jetbrains-mono'
+            },
+            content: `# Code Reference
+
+## Variables & Types
+\`\`\`python
+x: int = 42
+name: str = "Alice"
+items: list[int] = [1, 2, 3]
+data: dict[str, int] = {"a": 1}
+\`\`\`
+
+## Control Flow
+\`\`\`python
+# Conditional
+if x > 0:
+    print("positive")
+elif x == 0:
+    print("zero")
+else:
+    print("negative")
+
+# Loop
+for i in range(10):
+    if i % 2 == 0:
+        continue
+    print(i)
+\`\`\`
+
+## Functions
+\`\`\`python
+def greet(name: str, times: int = 1) -> str:
+    return f"Hello, {name}! " * times
+
+# Lambda
+square = lambda x: x ** 2
+
+# List comprehension
+evens = [x for x in range(20) if x % 2 == 0]
+\`\`\`
+
+## Classes
+\`\`\`python
+class Animal:
+    def __init__(self, name: str):
+        self.name = name
+
+    def speak(self) -> str:
+        return f"{self.name} says hello"
+
+class Dog(Animal):
+    def speak(self) -> str:
+        return f"{self.name} barks!"
+\`\`\`
+`
+        },
+        vocab: {
+            name: 'Vocabulary / Language',
+            description: 'Table-heavy layout for word lists',
+            toolbarSettings: {
+                columns: 2,
+                fontSize: 9,
+                padding: 8,
+                gap: 3,
+                lineHeight: 1.4,
+                orientation: 'portrait',
+                theme: 'classic',
+                fontFamily: 'inter'
+            },
+            content: `# Vocabulary Reference
+
+## Unit 1 — Core Terms
+
+| Word | Definition | Example |
+|------|-----------|---------|
+| **Ephemeral** | Lasting a very short time | Morning dew is *ephemeral* |
+| **Ubiquitous** | Present everywhere | Smartphones are *ubiquitous* |
+| **Pragmatic** | Dealing with things practically | A *pragmatic* solution |
+| **Ambiguous** | Open to more than one interpretation | An *ambiguous* statement |
+| **Cogent** | Clear and convincing | A *cogent* argument |
+
+## Unit 2 — Academic Vocabulary
+
+| Word | Part of Speech | Meaning |
+|------|---------------|---------|
+| **Analyze** | verb | Examine in detail |
+| **Hypothesis** | noun | A proposed explanation |
+| **Synthesize** | verb | Combine into a whole |
+| **Correlate** | verb | Have a relationship |
+| **Infer** | verb | Deduce from evidence |
+
+## Prefixes & Suffixes
+
+| Affix | Meaning | Examples |
+|-------|---------|---------|
+| **pre-** | before | preview, predict |
+| **sub-** | under/below | submarine, subtext |
+| **-ology** | study of | biology, psychology |
+| **-ify** | to make | clarify, justify |
+`
         }
     };
 
@@ -70,7 +232,6 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
             if (storedFiles.length > 0) {
                 const mergedFiles = withCurrentFileState(storedFiles);
                 setFiles(mergedFiles);
-                console.log('Loaded files:', mergedFiles.map(f => ({ name: f.name, contentLength: f.content.length, updatedAt: f.updatedAt })));
                 return;
             }
 
@@ -205,10 +366,20 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
     // Create a new file from a template.
     const handleCreateFromTemplate = async (templateKey) => {
         const template = templates[templateKey];
-        const newFile = await fileStorage.createFile(template.name, '', { ...template.toolbarSettings });
+        const newFile = await fileStorage.createFile(template.name, template.content || '', { ...template.toolbarSettings });
         setFiles([...files, newFile]);
         onNewFile(newFile);
-        setShowTemplates(false); // Close template selection after creating the file.
+        setShowTemplates(false);
+    };
+
+    // Duplicate a file.
+    const handleDuplicateFile = async (file) => {
+        const name = `Copy of ${file.name}`;
+        const content = file.id === currentFile?.id ? markdown : file.content;
+        const settings = file.id === currentFile?.id ? toolbarSettings : file.toolbarSettings;
+        const newFile = await fileStorage.createFile(name, content, settings);
+        setFiles(prev => [...prev, newFile]);
+        onNewFile(newFile);
     };
 
     // Delete a file.
@@ -680,6 +851,16 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
                                 </div>
                                 {editingId !== file.id && (
                                     <div className="file-actions">
+                                        <button
+                                            className="btn-icon"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDuplicateFile(file);
+                                            }}
+                                            title="Duplicate"
+                                        >
+                                            <Copy size={14} />
+                                        </button>
                                         <button
                                             className="btn-icon"
                                             onClick={(e) => {

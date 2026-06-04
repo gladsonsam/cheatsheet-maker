@@ -106,16 +106,18 @@ function App() {
   const [padding, setPadding] = useLocalStorage('cheatsheet_padding', 5);
   const [gap, setGap] = useLocalStorage('cheatsheet_gap', 1);
   const [lineHeight, setLineHeight] = useLocalStorage('cheatsheet_lineHeight', 1.2);
-  const [scale, setScale] = useState(0.6);
+  const [scale, setScale] = useLocalStorage('cheatsheet_scale', 0.6);
   const [orientation, setOrientation] = useLocalStorage('cheatsheet_orientation', 'landscape');
   const [theme, setTheme] = useLocalStorage('cheatsheet_theme', 'classic');
   const [fontFamily, setFontFamily] = useLocalStorage('cheatsheet_fontFamily', 'inter');
   const [appTheme, setAppTheme] = useLocalStorage('cheatsheet_app_theme', 'dark');
   const [splitSize, setSplitSize] = useLocalStorage('cheatsheet_splitSize', 50);
   const [customThemes, setCustomThemes] = useLocalStorage('cheatsheet_custom_themes', {});
-  const [liveUpdate, setLiveUpdate] = useState(true);
+  const [liveUpdate, setLiveUpdate] = useLocalStorage('cheatsheet_liveUpdate', true);
   const [isFilePanelOpen, setIsFilePanelOpen] = useState(false);
   const [currentFile, setCurrentFile] = useState(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const savedFadeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const previewRef = useRef(null);
   const previewContainerRef = useRef(null);
@@ -290,9 +292,14 @@ function App() {
   useEffect(() => {
     if (!currentFile) return;
 
+    setSaveStatus('saving');
+    if (savedFadeRef.current) clearTimeout(savedFadeRef.current);
+
     // Debounce saves so related content and toolbar changes are batched together.
-    const timer = setTimeout(() => {
-      saveCurrentFile();
+    const timer = setTimeout(async () => {
+      await saveCurrentFile();
+      setSaveStatus('saved');
+      savedFadeRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
     }, 2500);
 
     return () => clearTimeout(timer);
@@ -361,6 +368,28 @@ function App() {
         container.removeEventListener('wheel', handleWheel);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey) return;
+      // Ctrl++ / Ctrl+= → zoom in   (+ requires Shift on most keyboards, = does not)
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setScale(prev => Math.min(+(prev + 0.1).toFixed(2), 3));
+      // Ctrl+- → zoom out
+      } else if (e.key === '-') {
+        e.preventDefault();
+        setScale(prev => Math.max(+(prev - 0.1).toFixed(2), 0.1));
+      // Ctrl+0 → reset zoom
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setScale(0.6);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleLineClick = useCallback((line) => {
@@ -433,6 +462,7 @@ function App() {
             setMarkdown={setMarkdown}
             appTheme={appTheme}
             currentFile={currentFile}
+            saveStatus={saveStatus}
           />
         </div>
         <div

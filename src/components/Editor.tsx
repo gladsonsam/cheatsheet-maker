@@ -11,6 +11,7 @@ import ImageRenderer from './ImageRenderer';
 import Outline from './Outline';
 import LazyKatex from './LazyKatex';
 import imageStorage from '../utils/imageStorage';
+import { preprocessMarkdown } from '../utils/preprocessMarkdown';
 import 'katex/dist/katex.min.css';
 import TurndownService from 'turndown';
 import './Editor.css';
@@ -24,15 +25,7 @@ const turndownService = new TurndownService({
 // Disable Turndown's automatic escaping to prevent unwanted backslashes in formulas or special characters
 turndownService.escape = (string) => string;
 
-// Preprocess markdown to handle **text:** patterns
-const preprocessMarkdown = (markdown) => {
-    // Match **text with punctuation** and add space before closing **
-    // Supports: :;,!?.()[]{}\"'<>-–—/\\|@#$%^&*+=~`
-    // Both English and Chinese punctuation
-    return markdown.replace(/\*\*([^*]+?)([：:;,!?。，；！？\)\]\}\"'》>\\-–—\\/\\\\|@#$%^&*+=~`])\*\*/g, '**$1$2** ');
-};
-
-const Editor = forwardRef<any, any>(({ markdown, setMarkdown, appTheme, currentFile }, ref) => {
+const Editor = forwardRef<any, any>(({ markdown, setMarkdown, appTheme, currentFile, saveStatus }, ref) => {
     const editorRef = useRef(null);
     const monacoRef = useRef(null);
     const previewRef = useRef(null);
@@ -497,8 +490,13 @@ const Editor = forwardRef<any, any>(({ markdown, setMarkdown, appTheme, currentF
                     </button>
                     <span className="editor-title">Markdown Editor</span>
                     <span className="editor-info">
-                        {markdown.length} chars · {markdown.split('\n').length} lines
+                        {markdown.length} chars · {markdown.trim() ? markdown.trim().split(/\s+/).length : 0} words · {markdown.split('\n').length} lines
                     </span>
+                    {saveStatus && saveStatus !== 'idle' && (
+                        <span className={`save-indicator save-indicator--${saveStatus}`}>
+                            {saveStatus === 'saving' ? '● Saving' : '✓ Saved'}
+                        </span>
+                    )}
                 </div>
                 <div className="editor-header-right">
                     <button

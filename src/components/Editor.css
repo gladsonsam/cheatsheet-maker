@@ -33,6 +33,22 @@
     font-family: var(--font-family-mono);
 }
 
+.save-indicator {
+    font-size: 0.7rem;
+    font-family: var(--font-family-mono);
+    transition: opacity 0.3s;
+}
+
+.save-indicator--saving {
+    color: var(--color-text-tertiary);
+    opacity: 0.7;
+}
+
+.save-indicator--saved {
+    color: #4caf50;
+    opacity: 1;
+}
+
 .editor-toggle-btn {
     display: flex;
     align-items: center;

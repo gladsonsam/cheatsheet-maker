@@ -180,8 +180,9 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
 
     // Save the file list to the active storage backend.
     const saveFiles = async (updatedFiles) => {
-        setFiles(updatedFiles);
-        await fileStorage.saveFiles(updatedFiles);
+        const savedFiles = await fileStorage.saveFiles(updatedFiles);
+        setFiles(savedFiles);
+        return savedFiles;
     };
 
     // Create a new file.
@@ -347,7 +348,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
 
         // 1. Upload index file (metadata)
         const indexContent = JSON.stringify(normalizedFiles.map(f => ({
-            id: f.id,
+            id: f.remoteId || f.id,
             name: f.name,
             createdAt: f.createdAt,
             updatedAt: f.updatedAt,
@@ -359,7 +360,8 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
         // 2. Upload each file content and the local image records it references.
         const uploadedImageIds = new Set();
         for (const file of normalizedFiles) {
-            const filename = `content/${file.id}.md`;
+            const syncId = file.remoteId || file.id;
+            const filename = `content/${syncId}.md`;
             await githubSync.uploadFile(token, owner, repo, filename, file.content, `Update ${file.name}`);
 
             const imageIds = githubSync.getImageIdsFromMarkdown(file.content);
@@ -383,27 +385,80 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
 
     const handlePullFiles = async (token, owner, repo) => {
         const localFiles = withCurrentFileState(await fileStorage.loadFiles());
-        // 1. Get index file
+        const isDesktop = fileStorage.isDesktop();
+
+        // 1. Get index file; if absent, fall back to scanning the repo for .md files
         const indexContent = await githubSync.getFileContent(token, owner, repo, 'files.json');
-        if (!indexContent) {
-            throw new Error('No files found in repository');
+
+        let remoteFiles;
+        if (indexContent) {
+            remoteFiles = JSON.parse(indexContent);
+        } else {
+            // No files.json: scan the content/ subfolder first, then the root.
+            const isMd = (e) => e.type === 'file' && e.name.toLowerCase().endsWith('.md');
+            const SKIP_ROOT = new Set(['readme.md', 'license.md', 'changelog.md']);
+
+            const contentEntries = await githubSync.listDirectory(token, owner, repo, 'content');
+            let mdEntries = (contentEntries ?? []).filter(isMd);
+
+            if (mdEntries.length === 0) {
+                const rootEntries = await githubSync.listDirectory(token, owner, repo, '');
+                mdEntries = (rootEntries ?? []).filter(
+                    e => isMd(e) && !SKIP_ROOT.has(e.name.toLowerCase())
+                );
+            }
+
+            if (mdEntries.length === 0) {
+                throw new Error('No files found in repository');
+            }
+
+            const now = new Date().toISOString();
+            remoteFiles = mdEntries.map(e => {
+                const stem = e.name.slice(0, -3);
+                return {
+                    id: stem,
+                    name: stem,
+                    createdAt: now,
+                    updatedAt: now,
+                    _rawPath: e.path,
+                };
+            });
         }
 
-        const remoteFiles = JSON.parse(indexContent);
         const mergedFiles = [...localFiles];
         let updatedCount = 0;
+        let activeFileWasUpdated = false;
+        const claimedLocalIndexes = new Set<number>();
 
-        // 2. Merge files
+        // 2. Merge / overwrite with remote files
         for (const remoteFile of remoteFiles) {
-            const localFileIndex = mergedFiles.findIndex(f => f.id === remoteFile.id);
+            const remoteId = String(remoteFile.id);
+            const remotePathStem =
+                typeof remoteFile._rawPath === 'string'
+                    ? remoteFile._rawPath.split('/').pop()?.replace(/\.md$/i, '')
+                    : undefined;
+            const remoteName =
+                typeof remoteFile.name === 'string' && remoteFile.name.trim()
+                    ? remoteFile.name.trim()
+                    : remotePathStem || remoteId;
+            const localFileIndex = mergedFiles.findIndex((f, index) =>
+                f.id === remoteId ||
+                (isDesktop && (
+                    f.remoteId === remoteId ||
+                    (!f.remoteId && !claimedLocalIndexes.has(index) && f.name === remoteName)
+                ))
+            );
             const localFile = mergedFiles[localFileIndex];
+            if (localFileIndex !== -1) {
+                claimedLocalIndexes.add(localFileIndex);
+            }
 
-            // Determine if we should update (if local doesn't exist or remote is newer)
-            // For simplicity in "Restore" scenario, we can just overwrite if remote exists
-            // But let's check timestamps to be safe, or just overwrite if it's a "Pull" action
-
+            // Always overwrite on desktop (source-of-truth pull).
+            // On web, pull everything that doesn't exist locally or that is newer.
             let shouldUpdate = false;
-            if (!localFile) {
+            if (isDesktop) {
+                shouldUpdate = true;
+            } else if (!localFile) {
                 shouldUpdate = true;
             } else {
                 const remoteDate = new Date(remoteFile.updatedAt);
@@ -414,7 +469,9 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
             }
 
             if (shouldUpdate) {
-                let content = await githubSync.getFileContent(token, owner, repo, `content/${remoteFile.id}.md`);
+                // Prefer structured path (files.json-backed); fall back to raw path for scanned files
+                const contentPath = remoteFile._rawPath ?? `content/${remoteId}.md`;
+                let content = await githubSync.getFileContent(token, owner, repo, contentPath);
                 if (content !== null) {
                     // Extract legacy embedded images and restore them to IndexedDB
                     const imageMapping = await githubSync.extractImagesFromMarkdown(content, imageStorage);
@@ -433,15 +490,34 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
 
                     const newFile = {
                         ...remoteFile,
-                        content: content
+                        id: isDesktop && localFile ? localFile.id : remoteId,
+                        name: remoteName,
+                        content,
+                        remoteId,
                     };
+                    // Remove internal helper field before saving
+                    delete newFile._rawPath;
 
                     if (localFileIndex !== -1) {
                         mergedFiles[localFileIndex] = newFile;
                     } else {
                         mergedFiles.push(newFile);
                     }
+                    if (
+                        currentFile &&
+                        (
+                            currentFile.id === remoteId ||
+                            (isDesktop && (
+                                currentFile.remoteId === remoteId ||
+                                currentFile.name === remoteName
+                            ))
+                        )
+                    ) {
+                        activeFileWasUpdated = true;
+                    }
                     updatedCount++;
+                } else {
+                    console.warn(`Content not found in repository for: ${remoteFile.id}`);
                 }
             }
         }
@@ -449,20 +525,31 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onAc
         if (updatedCount > 0) {
             // Sort by updated time
             mergedFiles.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-            await saveFiles(mergedFiles);
+            const savedFiles = await saveFiles(mergedFiles);
 
-            // If current file was updated, refresh it
-            if (currentFile) {
-                const updatedCurrent = mergedFiles.find(f => f.id === currentFile.id);
-                if (updatedCurrent && updatedCurrent.updatedAt !== currentFile.updatedAt) {
-                    onFileChange(updatedCurrent);
+            // If the active file was updated, refresh it without running the
+            // normal switch handler, which saves the pre-pull editor contents.
+            if (currentFile && activeFileWasUpdated) {
+                const updatedCurrent = savedFiles.find(f =>
+                    f.id === currentFile.id ||
+                    (isDesktop && (
+                        (currentFile.remoteId && f.remoteId === currentFile.remoteId) ||
+                        f.name === currentFile.name
+                    ))
+                );
+                if (updatedCurrent) {
+                    onActiveFileReplaced(updatedCurrent);
                 }
             }
 
-            alert(`Successfully pulled ${updatedCount} files from GitHub.`);
-        } else {
-            alert('Local files are already up to date.');
+            // Explicitly reload the panel list so it reflects the latest disk state
+            // even if the watcher debounce hasn't fired yet.
+            await loadFiles();
+
+            return `Pulled ${updatedCount} ${updatedCount === 1 ? 'file' : 'files'} from GitHub.`;
         }
+
+        return 'Local files are already up to date.';
     };
 
     if (!isOpen) return null;

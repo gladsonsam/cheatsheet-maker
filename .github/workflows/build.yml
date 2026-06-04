@@ -8,65 +8,22 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Allow the workflow to create releases when building from a tag.
+# Allow the workflow to create the GitHub release when building from a tag.
 permissions:
   contents: write
 
 jobs:
-  # On a tag push, create (or reuse) the draft release up front so every matrix
-  # build uploads its installers into the same release. tauri-action can't do
-  # this itself across a matrix: parallel jobs would each try to create the
-  # release, and GitHub's "get release by tag" API doesn't return drafts, so the
-  # jobs can't see each other's draft and you end up with duplicates.
-  create-release:
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.create-release.outputs.result }}
-    steps:
-      - name: Create draft release
-        id: create-release
-        uses: actions/github-script@v7
-        with:
-          result-encoding: string
-          script: |
-            const tag = context.ref.replace('refs/tags/', '');
-            // Reuse an existing release for this tag (e.g. on a re-run) so we
-            // don't 422 trying to recreate it; listReleases includes drafts.
-            const releases = await github.paginate(github.rest.repos.listReleases, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-            const existing = releases.find((r) => r.tag_name === tag);
-            if (existing) {
-              return existing.id;
-            }
-            const { data } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: `Cheatsheet Maker ${tag}`,
-              draft: true,
-              prerelease: false,
-              generate_release_notes: true,
-            });
-            return data.id;
-
   build:
-    needs: [create-release]
-    # Run on branch/PR builds (where create-release is skipped) and on tag
-    # builds (where it must have succeeded), but not if the release step failed.
-    if: always() && needs.create-release.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Produces an NSIS installer (.exe) and an .msi.
+          # Windows: NSIS installer (.exe) + .msi
           - platform: windows-latest
-            args: '--bundles nsis,msi'
-          # Produces an .AppImage and a .deb (skip rpm: no rpmbuild on the runner).
+          # Linux: .AppImage + .deb
           - platform: ubuntu-22.04
-            args: '--bundles appimage,deb'
+          # macOS: .dmg + .zip
+          - platform: macos-latest
 
     runs-on: ${{ matrix.platform }}
 
@@ -74,51 +31,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Linux build dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust build
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build the app (and upload to the draft release on tags)
-        uses: tauri-apps/tauri-action@v0
-        id: tauri
+      - name: Lint
+        run: npm run lint
+
+      - name: Build renderer + electron bundles
+        run: npm run build:electron
+
+      # On a tag push, electron-builder publishes every platform's installers
+      # into a single draft GitHub release (keyed by the package version), which
+      # it creates on first publish and reuses thereafter. On
+      # branch/PR/dispatch builds we don't pass a token, so it only builds.
+      - name: Package (and publish to draft release on tags)
+        run: >-
+          npx electron-builder
+          ${{ startsWith(github.ref, 'refs/tags/') && '--publish always' || '--publish never' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # On a tag push, releaseId points at the draft created above and
-          # tauri-action attaches the installers to it. On branch/PR builds the
-          # create-release job is skipped, releaseId is empty, and the action
-          # just builds — we keep those artifacts via upload-artifact below.
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload installers as build artifacts
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -127,7 +65,9 @@ jobs:
           name: cheatsheet-maker-${{ matrix.platform }}
           if-no-files-found: ignore
           path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/deb/*.deb
+            release/*.exe
+            release/*.msi
+            release/*.AppImage
+            release/*.deb
+            release/*.dmg
+            release/*.zip

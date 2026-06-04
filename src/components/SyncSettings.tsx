@@ -77,16 +77,30 @@ function SyncSettings({ isOpen, onClose, onPush, onPull }: any) {
 
             localStorage.setItem('github_repo', repoName);
 
-            // Call parent handler
-            await actionFn(token, user.login, repoName);
+            // Call parent handler. It may return a more specific result message,
+            // such as the number of files pulled.
+            const result = await actionFn(token, user.login, repoName);
+            const resultMessage =
+                typeof result === 'string'
+                    ? result
+                    : result?.message;
 
             setStatus('success');
-            setMessage(`${actionName} completed successfully!`);
+            setMessage(resultMessage || `${actionName} completed successfully!`);
             setTimeout(() => setMessage(`Connected as ${user.login}`), 3000);
         } catch (error) {
             console.error(error);
             setStatus('error');
-            setMessage(`${actionName} failed: ` + error.message);
+            // Errors can arrive as Error objects, plain strings, or other values
+            // depending on where they're thrown; normalize to a readable string
+            // so the user never sees "failed: undefined".
+            const detail =
+                error instanceof Error
+                    ? error.message
+                    : typeof error === 'string'
+                      ? error
+                      : JSON.stringify(error);
+            setMessage(`${actionName} failed: ${detail || 'Unknown error'}`);
         }
     };
 

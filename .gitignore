@@ -10,7 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-src-tauri/target
+dist-electron
+release
+npm-install.log
 *.local
 
 # Editor directories and files

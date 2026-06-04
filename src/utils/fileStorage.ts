@@ -6,12 +6,10 @@ export interface StorageInfo {
 
 const STORAGE_KEY = 'cheatsheet_files';
 
-const isTauriRuntime = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-
-const invokeCommand = async <T>(command: string, args?: Record<string, unknown>): Promise<T> => {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke<T>(command, args);
-};
+// In the Electron desktop shell the preload script exposes window.electronAPI.
+// In the browser build it's undefined and we fall back to localStorage.
+const desktopApi = () =>
+    typeof window !== 'undefined' ? window.electronAPI : undefined;
 
 const sortByUpdatedAt = (files: CheatsheetFile[]) => {
     return [...files].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -26,22 +24,25 @@ const normalize = (file: CheatsheetFile): CheatsheetFile => ({
 
 class FileStorage {
     isDesktop() {
-        return isTauriRuntime();
+        return desktopApi() !== undefined;
     }
 
     async getStorageInfo(): Promise<StorageInfo | null> {
-        if (!this.isDesktop()) return null;
-        return invokeCommand<StorageInfo>('get_storage_info');
+        const api = desktopApi();
+        if (!api) return null;
+        return api.getStorageInfo();
     }
 
     async openStorageDir(): Promise<void> {
-        if (!this.isDesktop()) return;
-        await invokeCommand('open_storage_dir');
+        const api = desktopApi();
+        if (!api) return;
+        await api.openStorageDir();
     }
 
     async loadFiles(): Promise<CheatsheetFile[]> {
-        if (this.isDesktop()) {
-            const files = await invokeCommand<CheatsheetFile[]>('load_files');
+        const api = desktopApi();
+        if (api) {
+            const files = await api.loadFiles();
             return sortByUpdatedAt(files.map(normalize));
         }
 
@@ -63,12 +64,9 @@ class FileStorage {
         content: string,
         toolbarSettings?: ToolbarSettings,
     ): Promise<CheatsheetFile> {
-        if (this.isDesktop()) {
-            const file = await invokeCommand<CheatsheetFile>('create_file', {
-                name,
-                content,
-                toolbarSettings,
-            });
+        const api = desktopApi();
+        if (api) {
+            const file = await api.createFile(name, content, toolbarSettings);
             return normalize(file);
         }
 
@@ -88,14 +86,18 @@ class FileStorage {
 
     // Upsert a single file. On desktop this writes only this file, so external
     // edits to other files are never clobbered by autosave.
-    async saveFile(file: CheatsheetFile): Promise<void> {
-        if (this.isDesktop()) {
-            await invokeCommand('save_file', {
-                id: file.id,
-                content: file.content,
-                toolbarSettings: file.toolbarSettings,
-            });
-            return;
+    async saveFile(file: CheatsheetFile): Promise<CheatsheetFile> {
+        const api = desktopApi();
+        if (api) {
+            const saved = await api.saveFile(
+                file.id,
+                file.content,
+                file.toolbarSettings,
+                file.name,
+                file.createdAt,
+                file.remoteId,
+            );
+            return normalize(saved);
         }
 
         const files = await this.loadFiles();
@@ -104,11 +106,13 @@ class FileStorage {
             ? files.map(f => (f.id === file.id ? updated : f))
             : [...files, updated];
         await this.persistWeb(next);
+        return updated;
     }
 
     async renameFile(id: string, newName: string): Promise<CheatsheetFile> {
-        if (this.isDesktop()) {
-            const file = await invokeCommand<CheatsheetFile>('rename_file', { id, newName });
+        const api = desktopApi();
+        if (api) {
+            const file = await api.renameFile(id, newName);
             return normalize(file);
         }
 
@@ -125,8 +129,9 @@ class FileStorage {
     }
 
     async deleteFile(fileId: string, fallbackFiles: CheatsheetFile[]): Promise<void> {
-        if (this.isDesktop()) {
-            await invokeCommand('delete_file', { id: fileId });
+        const api = desktopApi();
+        if (api) {
+            await api.deleteFile(fileId);
             return;
         }
 
@@ -134,39 +139,25 @@ class FileStorage {
     }
 
     // Bulk upsert. Used by GitHub sync. Desktop upserts each file individually
-    // (it never prunes — deletions go through deleteFile).
-    async saveFiles(files: CheatsheetFile[]): Promise<void> {
+    // (it never prunes; deletions go through deleteFile).
+    async saveFiles(files: CheatsheetFile[]): Promise<CheatsheetFile[]> {
         if (this.isDesktop()) {
             for (const file of files) {
                 await this.saveFile(file);
             }
-            return;
+            return this.loadFiles();
         }
 
         await this.persistWeb(files);
+        return sortByUpdatedAt(files.map(normalize));
     }
 
     // Subscribe to external disk changes (desktop only). Returns an unsubscribe
     // function. No-op on web.
     subscribeToChanges(callback: () => void): () => void {
-        if (!this.isDesktop()) return () => {};
-
-        let unlisten: (() => void) | undefined;
-        let cancelled = false;
-        import('@tauri-apps/api/event').then(({ listen }) => {
-            listen('cheatsheets-changed', () => callback()).then(fn => {
-                if (cancelled) {
-                    fn();
-                } else {
-                    unlisten = fn;
-                }
-            });
-        });
-
-        return () => {
-            cancelled = true;
-            unlisten?.();
-        };
+        const api = desktopApi();
+        if (!api) return () => {};
+        return api.onCheatsheetsChanged(callback);
     }
 
     private async persistWeb(files: CheatsheetFile[]): Promise<void> {

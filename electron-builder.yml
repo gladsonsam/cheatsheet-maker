@@ -1,0 +1,47 @@
+appId: com.cheatsheetmaker.desktop
+productName: Cheatsheet Maker
+copyright: Cheatsheet Maker
+
+directories:
+  output: release
+  buildResources: build
+
+# Everything the app needs at runtime is bundled by Vite (renderer -> dist) and
+# esbuild (main/preload -> dist-electron). No app node_modules are shipped.
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+  - "!node_modules/**/*"
+
+# Pull installers into a draft GitHub release on tag builds (see the workflow).
+publish:
+  provider: github
+  owner: gladsonsam
+  repo: cheatsheet-maker
+  releaseType: draft
+
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+    - msi
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  icon: build/icon.icns
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+
+linux:
+  icon: build/icon.png
+  category: Office
+  target:
+    - AppImage
+    - deb

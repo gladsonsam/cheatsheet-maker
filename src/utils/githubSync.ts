@@ -57,7 +57,8 @@ class GithubSync {
     }
 
     async getFile(token: string, owner: string, repo: string, path: string): Promise<any | null> {
-        const response = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`, {
+        const encoded = path.split('/').map(encodeURIComponent).join('/');
+        const response = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/contents/${encoded}`, {
             headers: {
                 'Authorization': `token ${token}`,
                 'Accept': 'application/vnd.github.v3+json'
@@ -66,6 +67,23 @@ class GithubSync {
         if (response.status === 404) return null;
         if (!response.ok) throw new Error('Failed to get file');
         return await response.json();
+    }
+
+    async listDirectory(token: string, owner: string, repo: string, path: string): Promise<any[] | null> {
+        const encoded = path ? path.split('/').map(encodeURIComponent).join('/') : '';
+        const url = encoded
+            ? `${this.baseUrl}/repos/${owner}/${repo}/contents/${encoded}`
+            : `${this.baseUrl}/repos/${owner}/${repo}/contents`;
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error('Failed to list directory');
+        const data = await response.json();
+        return Array.isArray(data) ? data : null;
     }
 
     async getFileContent(token: string, owner: string, repo: string, path: string): Promise<string | null> {
@@ -89,7 +107,8 @@ class GithubSync {
         // Convert content to Base64 (handling UTF-8)
         const contentEncoded = btoa(unescape(encodeURIComponent(content)));
 
-        const response = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/contents/${path}`, {
+        const encoded = path.split('/').map(encodeURIComponent).join('/');
+        const response = await fetch(`${this.baseUrl}/repos/${owner}/${repo}/contents/${encoded}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `token ${token}`,

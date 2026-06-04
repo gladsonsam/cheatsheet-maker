@@ -21,6 +21,7 @@ export interface CheatsheetFile {
   createdAt: string;
   updatedAt: string;
   toolbarSettings?: ToolbarSettings;
+  remoteId?: string;
 }
 
 export interface ThemeDefinition {

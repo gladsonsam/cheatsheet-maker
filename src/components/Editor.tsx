@@ -579,7 +579,7 @@ const Editor = forwardRef<any, any>(({ markdown, setMarkdown, appTheme, currentF
                         height="100%"
                         language="markdown"
                         theme={appTheme === 'dark' ? 'vs-dark' : 'light'}
-                        defaultValue={markdown}
+                        value={markdown}
                         onChange={handleEditorChange}
                         onMount={handleEditorDidMount}
                         options={{

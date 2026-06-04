@@ -7,12 +7,16 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@monaco-editor/react": "^4.7.0",
+    "@tauri-apps/api": "^2.11.0",
     "@types/react-syntax-highlighter": "^15.5.13",
     "katex": "^0.16.25",
     "lucide-react": "^0.554.0",
@@ -29,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5.0.6",

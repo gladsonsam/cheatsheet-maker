@@ -4,7 +4,9 @@ import Preview from './components/Preview';
 import Toolbar from './components/Toolbar';
 import FilePanel from './components/FilePanel';
 import { useLocalStorage } from './utils/useLocalStorage';
+import fileStorage from './utils/fileStorage';
 import defaultThemes from './styles/themes';
+import type { ToolbarSettings } from './types';
 import './App.css';
 
 const defaultMarkdown = `# Markdown Cheatsheet
@@ -158,23 +160,33 @@ function App() {
     appTheme: 'dark'
   };
 
-  // Initialize the current file from local storage.
+  const getToolbarSettings = (): ToolbarSettings => ({
+    columns,
+    fontSize,
+    padding,
+    gap,
+    lineHeight,
+    orientation: orientation as ToolbarSettings['orientation'],
+    theme,
+    fontFamily
+  });
+
+  // Initialize the current file from the active storage backend.
   useEffect(() => {
-    const savedFiles = localStorage.getItem('cheatsheet_files');
-    if (savedFiles) {
+    let cancelled = false;
+
+    const initializeFiles = async () => {
       try {
-        const parsedFiles = JSON.parse(savedFiles);
-        if (parsedFiles.length > 0) {
-          // Sort by updated time, newest first.
-          const sortedFiles = parsedFiles.sort((a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
-          setCurrentFile(sortedFiles[0]);
-          setMarkdown(sortedFiles[0].content);
+        const savedFiles = await fileStorage.loadFiles();
+        if (cancelled) return;
+
+        if (savedFiles.length > 0) {
+          setCurrentFile(savedFiles[0]);
+          setMarkdown(savedFiles[0].content);
 
           // Load toolbar settings from the current file if they exist
-          if (sortedFiles[0].toolbarSettings) {
-            const settings = sortedFiles[0].toolbarSettings;
+          if (savedFiles[0].toolbarSettings) {
+            const settings = savedFiles[0].toolbarSettings;
             if (settings.columns !== undefined) setColumns(settings.columns);
             if (settings.fontSize !== undefined) setFontSize(settings.fontSize);
             if (settings.padding !== undefined) setPadding(settings.padding);
@@ -184,71 +196,93 @@ function App() {
             if (settings.theme !== undefined) setTheme(settings.theme);
             if (settings.fontFamily !== undefined) setFontFamily(settings.fontFamily);
           }
+          return;
         }
       } catch (e) {
-        console.error('Failed to parse saved files:', e);
+        console.error('Failed to load saved files:', e);
       }
-    } else {
-      const defaultFile = {
-        id: Date.now(),
-        name: 'Untitled',
-        content: defaultMarkdown,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        toolbarSettings: {
-          columns,
-          fontSize,
-          padding,
-          gap,
-          lineHeight,
-          orientation,
-          theme,
-          fontFamily
-        }
-      };
+
+      const defaultFile = await fileStorage.createFile('Untitled', defaultMarkdown, getToolbarSettings());
+      if (cancelled) return;
       setCurrentFile(defaultFile);
       setMarkdown(defaultMarkdown);
-      localStorage.setItem('cheatsheet_files', JSON.stringify([defaultFile]));
+    };
+
+    initializeFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Keep the latest current file available to the disk-change listener.
+  const currentFileRef = useRef(currentFile);
+  useEffect(() => {
+    currentFileRef.current = currentFile;
+  }, [currentFile]);
+
+  // Live reload: when files change on disk (e.g. edited by Claude Code or any
+  // external editor), refresh the open file so the preview updates instantly.
+  const reloadFromDisk = useCallback(async () => {
+    const active = currentFileRef.current;
+    try {
+      const files = await fileStorage.loadFiles();
+      if (!active) return;
+
+      const match = files.find(f => f.id === active.id);
+      if (match) {
+        // Only react to genuine external changes. If the disk content already
+        // matches the editor (e.g. this event came from our own autosave), do
+        // nothing — touching state here would re-arm autosave and loop.
+        if (match.content !== markdownRef.current) {
+          setMarkdown(match.content);
+          setCurrentFile(prev => (prev ? { ...prev, updatedAt: match.updatedAt } : match));
+        }
+      } else if (files.length > 0) {
+        // The active file was renamed or deleted externally; fall back to the
+        // most recently updated file.
+        setCurrentFile(files[0]);
+        setMarkdown(files[0].content);
+      }
+    } catch (e) {
+      console.error('Failed to reload files from disk:', e);
     }
   }, []);
 
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = fileStorage.subscribeToChanges(() => {
+      // Debounce bursts of filesystem events into a single reload.
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => reloadFromDisk(), 200);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [reloadFromDisk]);
+
   // Keep settings ref updated for save operations
-  const settingsRef = useRef({
-    columns, fontSize, padding, gap, lineHeight, orientation, theme, fontFamily
-  });
+  const settingsRef = useRef<ToolbarSettings>(getToolbarSettings());
 
   useEffect(() => {
-    settingsRef.current = {
-      columns, fontSize, padding, gap, lineHeight, orientation, theme, fontFamily
-    };
+    settingsRef.current = getToolbarSettings();
   }, [columns, fontSize, padding, gap, lineHeight, orientation, theme, fontFamily]);
 
-  // Save the current file to localStorage using refs for the latest values.
-  const saveCurrentFile = () => {
+  // Save only the current file (single-file write) so that external edits to
+  // other files are never overwritten by autosave.
+  const saveCurrentFile = async () => {
     if (!currentFile) return;
 
-    const savedFiles = localStorage.getItem('cheatsheet_files');
-    if (savedFiles) {
-      try {
-        const parsedFiles = JSON.parse(savedFiles);
-        const currentSettings = settingsRef.current;
-        const updatedFiles = parsedFiles.map(f =>
-          f.id === currentFile.id
-            ? {
-              ...f,
-              content: markdownRef.current,
-              updatedAt: new Date().toISOString(),
-              toolbarSettings: {
-                ...currentSettings
-              }
-            }
-            : f
-        );
-        localStorage.setItem('cheatsheet_files', JSON.stringify(updatedFiles));
-        console.log('Saved current file:', currentFile.name, 'Content length:', markdownRef.current.length);
-      } catch (e) {
-        console.error('Failed to save current file:', e);
-      }
+    try {
+      await fileStorage.saveFile({
+        ...currentFile,
+        content: markdownRef.current,
+        updatedAt: new Date().toISOString(),
+        toolbarSettings: { ...settingsRef.current }
+      });
+    } catch (e) {
+      console.error('Failed to save current file:', e);
     }
   };
 
@@ -264,52 +298,48 @@ function App() {
     return () => clearTimeout(timer);
   }, [markdown, currentFile, columns, fontSize, padding, gap, lineHeight, orientation, theme, fontFamily]);
 
+  // Apply a file's saved toolbar settings to the active controls.
+  const applyFileSettings = (file) => {
+    if (!file?.toolbarSettings) return;
+    const settings = file.toolbarSettings;
+    if (settings.columns !== undefined) setColumns(settings.columns);
+    if (settings.fontSize !== undefined) setFontSize(settings.fontSize);
+    if (settings.padding !== undefined) setPadding(settings.padding);
+    if (settings.gap !== undefined) setGap(settings.gap);
+    if (settings.lineHeight !== undefined) setLineHeight(settings.lineHeight);
+    if (settings.orientation !== undefined) setOrientation(settings.orientation);
+    if (settings.theme !== undefined) setTheme(settings.theme);
+    if (settings.fontFamily !== undefined) setFontFamily(settings.fontFamily);
+  };
+
   // Handle switching between files.
-  const handleFileChange = (file) => {
+  const handleFileChange = async (file) => {
     // Save the current file before switching.
-    saveCurrentFile();
+    await saveCurrentFile();
     // Switch to the selected file.
     setCurrentFile(file);
     setMarkdown(file.content);
-
-    // Load toolbar settings from the selected file if they exist
-    if (file.toolbarSettings) {
-      const settings = file.toolbarSettings;
-      if (settings.columns !== undefined) setColumns(settings.columns);
-      if (settings.fontSize !== undefined) setFontSize(settings.fontSize);
-      if (settings.padding !== undefined) setPadding(settings.padding);
-      if (settings.gap !== undefined) setGap(settings.gap);
-      if (settings.lineHeight !== undefined) setLineHeight(settings.lineHeight);
-      if (settings.orientation !== undefined) setOrientation(settings.orientation);
-      if (settings.theme !== undefined) setTheme(settings.theme);
-      if (settings.fontFamily !== undefined) setFontFamily(settings.fontFamily);
-    }
-
+    applyFileSettings(file);
     setIsFilePanelOpen(false);
   };
 
   // Handle creating a new file.
-  const handleNewFile = (file) => {
+  const handleNewFile = async (file) => {
     // Save the current file before switching.
-    saveCurrentFile();
+    await saveCurrentFile();
     // Switch to the new file.
     setCurrentFile(file);
     setMarkdown(file.content);
-
-    // Load toolbar settings from the new file if they exist
-    if (file.toolbarSettings) {
-      const settings = file.toolbarSettings;
-      if (settings.columns !== undefined) setColumns(settings.columns);
-      if (settings.fontSize !== undefined) setFontSize(settings.fontSize);
-      if (settings.padding !== undefined) setPadding(settings.padding);
-      if (settings.gap !== undefined) setGap(settings.gap);
-      if (settings.lineHeight !== undefined) setLineHeight(settings.lineHeight);
-      if (settings.orientation !== undefined) setOrientation(settings.orientation);
-      if (settings.theme !== undefined) setTheme(settings.theme);
-      if (settings.fontFamily !== undefined) setFontFamily(settings.fontFamily);
-    }
-
+    applyFileSettings(file);
     setIsFilePanelOpen(false);
+  };
+
+  // Adopt an already-persisted replacement for the active file (e.g. after a
+  // rename, where the id has changed). No save — the content is already on disk.
+  const handleActiveFileReplaced = (file) => {
+    setCurrentFile(file);
+    setMarkdown(file.content);
+    applyFileSettings(file);
   };
 
   useEffect(() => {
@@ -381,6 +411,7 @@ function App() {
         currentFile={currentFile}
         onFileChange={handleFileChange}
         onNewFile={handleNewFile}
+        onActiveFileReplaced={handleActiveFileReplaced}
         markdown={markdown}
         toolbarSettings={{
           columns,

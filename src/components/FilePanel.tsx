@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { File, Plus, Trash2, Edit2, Check, X, Image, Copy, Link, Eye, Github, Cloud } from 'lucide-react';
+import { File, Plus, Trash2, Edit2, Check, X, Image, Link, Eye, Github, Cloud, FolderOpen, RefreshCw } from 'lucide-react';
 import imageStorage from '../utils/imageStorage';
 import githubSync from '../utils/githubSync';
+import fileStorage from '../utils/fileStorage';
+import type { ToolbarSettings } from '../types';
 import SyncSettings from './SyncSettings';
 import './FilePanel.css';
 
-function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, markdown, toolbarSettings }) {
+function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, onActiveFileReplaced, markdown, toolbarSettings }) {
     const [files, setFiles] = useState([]);
     const [editingId, setEditingId] = useState(null);
     const [editingName, setEditingName] = useState('');
@@ -14,6 +16,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
     const [previewImage, setPreviewImage] = useState(null);
     const [showTemplates, setShowTemplates] = useState(false);
     const [showSync, setShowSync] = useState(false);
+    const [storageInfo, setStorageInfo] = useState(null);
 
     // Template presets.
     const templates = {
@@ -47,27 +50,31 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     };
 
-    // Load the file list from localStorage whenever the panel opens.
-    useEffect(() => {
-        if (!isOpen) return;
+    const withCurrentFileState = (loadedFiles) => {
+        if (!currentFile) return loadedFiles;
 
-        const savedFiles = localStorage.getItem('cheatsheet_files');
-        if (savedFiles) {
-            try {
-                const parsedFiles = JSON.parse(savedFiles);
-                // Sort by updated time, newest first.
-                const sortedFiles = parsedFiles.sort((a, b) =>
-                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-                );
-                setFiles(sortedFiles);
-                console.log('Loaded files:', sortedFiles.map(f => ({ name: f.name, contentLength: f.content.length, updatedAt: f.updatedAt })));
-            } catch (e) {
-                console.error('Failed to parse saved files:', e);
-                setFiles([]);
+        return loadedFiles.map(file =>
+            file.id === currentFile.id
+                ? {
+                    ...file,
+                    content: markdown,
+                    toolbarSettings: toolbarSettings || file.toolbarSettings
+                }
+                : file
+        );
+    };
+
+    const loadFiles = async () => {
+        try {
+            const storedFiles = await fileStorage.loadFiles();
+            if (storedFiles.length > 0) {
+                const mergedFiles = withCurrentFileState(storedFiles);
+                setFiles(mergedFiles);
+                console.log('Loaded files:', mergedFiles.map(f => ({ name: f.name, contentLength: f.content.length, updatedAt: f.updatedAt })));
+                return;
             }
-        } else {
-            // Create a default file when nothing has been saved yet.
-            const defaultToolbarSettings = {
+
+            const defaultToolbarSettings: ToolbarSettings = {
                 columns: 5,
                 fontSize: 8,
                 padding: 5,
@@ -78,17 +85,42 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
                 fontFamily: 'inter'
             };
 
-            const defaultFile = {
-                id: Date.now(),
-                name: 'Untitled',
-                content: markdown,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                toolbarSettings: defaultToolbarSettings
-            };
+            const defaultFile = await fileStorage.createFile('Untitled', markdown, defaultToolbarSettings);
             setFiles([defaultFile]);
-            localStorage.setItem('cheatsheet_files', JSON.stringify([defaultFile]));
+        } catch (e) {
+            console.error('Failed to load files:', e);
+            setFiles([]);
         }
+    };
+
+    // Load the file list from the active storage backend whenever the panel opens.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        loadFiles();
+
+        if (fileStorage.isDesktop()) {
+            fileStorage.getStorageInfo().then(setStorageInfo).catch(error => {
+                console.error('Failed to load desktop storage info:', error);
+            });
+        } else {
+            setStorageInfo(null);
+        }
+    }, [isOpen]);
+
+    // While the panel is open, keep the list in sync with external disk changes
+    // (files created/renamed/deleted by Claude Code or another editor).
+    useEffect(() => {
+        if (!isOpen) return;
+        let timer: ReturnType<typeof setTimeout>;
+        const unsubscribe = fileStorage.subscribeToChanges(() => {
+            clearTimeout(timer);
+            timer = setTimeout(() => loadFiles(), 200);
+        });
+        return () => {
+            clearTimeout(timer);
+            unsubscribe();
+        };
     }, [isOpen]);
 
     // Load image records.
@@ -146,62 +178,51 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
     };
 
-    // Save the file list to localStorage.
-    const saveFiles = (updatedFiles) => {
+    // Save the file list to the active storage backend.
+    const saveFiles = async (updatedFiles) => {
         setFiles(updatedFiles);
-        localStorage.setItem('cheatsheet_files', JSON.stringify(updatedFiles));
+        await fileStorage.saveFiles(updatedFiles);
     };
 
     // Create a new file.
-    const handleNewFile = () => {
-        const newFile = {
-            id: Date.now(),
-            name: 'Untitled',
-            content: '',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            toolbarSettings: toolbarSettings || {
-                columns: 5,
-                fontSize: 8,
-                padding: 5,
-                gap: 1,
-                lineHeight: 1.2,
-                orientation: 'landscape',
-                theme: 'classic',
-                fontFamily: 'inter'
-            }
+    const handleNewFile = async () => {
+        const settings = toolbarSettings || {
+            columns: 5,
+            fontSize: 8,
+            padding: 5,
+            gap: 1,
+            lineHeight: 1.2,
+            orientation: 'landscape' as const,
+            theme: 'classic',
+            fontFamily: 'inter'
         };
-        const updatedFiles = [...files, newFile];
-        saveFiles(updatedFiles);
+        const newFile = await fileStorage.createFile('Untitled', '', settings);
+        setFiles([...files, newFile]);
         onNewFile(newFile);
     };
 
     // Create a new file from a template.
-    const handleCreateFromTemplate = (templateKey) => {
+    const handleCreateFromTemplate = async (templateKey) => {
         const template = templates[templateKey];
-        const newFile = {
-            id: Date.now(),
-            name: `${template.name}`,
-            content: '', // Templates do not include content.
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            toolbarSettings: { ...template.toolbarSettings }
-        };
-        const updatedFiles = [...files, newFile];
-        saveFiles(updatedFiles);
+        const newFile = await fileStorage.createFile(template.name, '', { ...template.toolbarSettings });
+        setFiles([...files, newFile]);
         onNewFile(newFile);
         setShowTemplates(false); // Close template selection after creating the file.
     };
 
     // Delete a file.
-    const handleDeleteFile = (fileId) => {
+    const handleDeleteFile = async (fileId) => {
         if (files.length === 1) {
             alert('Cannot delete the last file');
             return;
         }
         if (confirm('Are you sure you want to delete this file?')) {
             const updatedFiles = files.filter(file => file.id !== fileId);
-            saveFiles(updatedFiles);
+            await fileStorage.deleteFile(fileId, files).catch(error => {
+                console.error('Failed to delete file from storage:', error);
+                alert('Failed to delete file');
+            });
+            setFiles(updatedFiles);
 
             // If the current file was deleted, switch to the first remaining file.
             if (currentFile && currentFile.id === fileId) {
@@ -261,17 +282,29 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
     };
 
     // Confirm a rename.
-    const handleConfirmRename = (fileId) => {
+    const handleConfirmRename = async (fileId) => {
         if (!editingName.trim()) {
             alert('File name cannot be empty');
             return;
         }
-        const updatedFiles = files.map(file =>
-            file.id === fileId
-                ? { ...file, name: editingName.trim() }
-                : file
-        );
-        saveFiles(updatedFiles);
+        try {
+            const isCurrent = currentFile && currentFile.id === fileId;
+            // Persist the latest in-memory edits to the old file first so the
+            // rename carries the newest content across to the new filename.
+            if (isCurrent) {
+                await fileStorage.saveFile({ ...currentFile, content: markdown, toolbarSettings });
+            }
+            const renamed = await fileStorage.renameFile(fileId, editingName.trim());
+            setFiles(files.map(file => (file.id === fileId ? { ...renamed, content: file.content } : file)));
+            // The id can change on desktop (it tracks the filename), so re-point
+            // the active file at the renamed entry without re-saving the old one.
+            if (isCurrent) {
+                onActiveFileReplaced({ ...renamed, content: markdown });
+            }
+        } catch (error) {
+            console.error('Failed to rename file:', error);
+            alert('Failed to rename file');
+        }
         setEditingId(null);
         setEditingName('');
     };
@@ -295,9 +328,11 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
     };
 
     const handlePushFiles = async (token, owner, repo) => {
+        const filesForSync = withCurrentFileState(files);
+        await saveFiles(filesForSync);
         const normalizedFiles = [];
 
-        for (const file of files) {
+        for (const file of filesForSync) {
             let content = file.content;
 
             // Convert legacy inline data URLs before syncing so markdown stays small.
@@ -341,12 +376,13 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
             }
         }
 
-        if (JSON.stringify(normalizedFiles) !== JSON.stringify(files)) {
-            saveFiles(normalizedFiles);
+        if (JSON.stringify(normalizedFiles) !== JSON.stringify(filesForSync)) {
+            await saveFiles(normalizedFiles);
         }
     };
 
     const handlePullFiles = async (token, owner, repo) => {
+        const localFiles = withCurrentFileState(await fileStorage.loadFiles());
         // 1. Get index file
         const indexContent = await githubSync.getFileContent(token, owner, repo, 'files.json');
         if (!indexContent) {
@@ -354,7 +390,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         }
 
         const remoteFiles = JSON.parse(indexContent);
-        const mergedFiles = [...files];
+        const mergedFiles = [...localFiles];
         let updatedCount = 0;
 
         // 2. Merge files
@@ -413,7 +449,7 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
         if (updatedCount > 0) {
             // Sort by updated time
             mergedFiles.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-            saveFiles(mergedFiles);
+            await saveFiles(mergedFiles);
 
             // If current file was updated, refresh it
             if (currentFile) {
@@ -477,6 +513,28 @@ function FilePanel({ isOpen, onClose, currentFile, onFileChange, onNewFile, mark
                         </button>
                     )}
                 </div>
+
+                {storageInfo && !showImages && !showTemplates && (
+                    <div className="desktop-storage-note">
+                        <button
+                            className="storage-open"
+                            onClick={() => fileStorage.openStorageDir()}
+                            title={`Open ${storageInfo.dir} in your file manager`}
+                        >
+                            <FolderOpen size={14} />
+                            <span className="storage-path">{storageInfo.dir}</span>
+                            <span className="storage-open-hint">Open folder</span>
+                        </button>
+                        <button
+                            className="storage-refresh"
+                            onClick={loadFiles}
+                            title="Reload files from disk"
+                        >
+                            <RefreshCw size={14} />
+                            Refresh
+                        </button>
+                    </div>
+                )}
 
                 <div className="file-list">
                     {!showImages && !showTemplates ? (

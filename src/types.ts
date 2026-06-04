@@ -15,7 +15,7 @@ export interface ToolbarSettings {
 }
 
 export interface CheatsheetFile {
-  id: number;
+  id: string;
   name: string;
   content: string;
   createdAt: string;

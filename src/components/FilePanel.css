@@ -116,6 +116,78 @@
     background: var(--color-bg-hover);
 }
 
+.desktop-storage-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px 8px 20px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 12px;
+    min-width: 0;
+}
+
+.desktop-storage-note .storage-open {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.desktop-storage-note .storage-open:hover {
+    background: var(--color-bg-hover, rgba(127, 127, 127, 0.12));
+    color: var(--color-text-primary);
+}
+
+.desktop-storage-note .storage-open svg {
+    flex-shrink: 0;
+}
+
+.desktop-storage-note .storage-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    flex: 1;
+    min-width: 0;
+}
+
+.desktop-storage-note .storage-open-hint {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: var(--color-accent-primary, #6366f1);
+}
+
+.desktop-storage-note .storage-refresh {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.desktop-storage-note .storage-refresh:hover {
+    background: var(--color-bg-hover);
+}
+
 .file-list {
     flex: 1;
     overflow-y: auto;

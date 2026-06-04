@@ -2,6 +2,11 @@
   "name": "cheatsheet",
   "private": true,
   "version": "0.1.0",
+  "description": "A React and Electron app for creating and exporting Markdown cheatsheets.",
+  "author": {
+    "name": "gladsonsam",
+    "email": "gladsonsam@users.noreply.github.com"
+  },
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
